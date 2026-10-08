@@ -61,7 +61,7 @@ $menu = $MENU->getMenu();
 
 			echo "<img src='" . $baseURL . "/wccms/img/wite-canvas-logo-sq-no-tag-150.jpg' style='max-width:60px'><br>";
 			echo "&copy; copyright witecanvas.com 2020 - " . date("Y") . "<br>";
-			echo "Ver: 3.0.0<br>";
+			echo "Ver: 5.0.0<br>";
 			echo "Bootstrap ver: " . htmlspecialchars(CMS_BOOTSTRAP_VERSION). "<br>";
 		echo "</div>";
 		?>
