@@ -22,6 +22,13 @@ require_once (dirname(__FILE__) . '/../../../private/dbcon.php');
 require_once (dirname(__FILE__) . '/../../../private/db.php');
 global $conn;
 
+require_once __DIR__ . '/../include/session.php';
+if (!isset($_SESSION['useremail'])) {
+    http_response_code(401);
+    echo json_encode(['success'=>false, 'message'=>'Please log in.']);
+    exit;
+}
+
 //error_log("Full URL: " . $_SERVER['REQUEST_URI']);
 //error_log("GET Parameters: " . print_r($_GET, true));
 //error_log("POST Parameters: " . print_r($_POST, true));
@@ -110,80 +117,18 @@ if ($action === 'saveTimeData') {
  */
  function saveTimeData($data) {
     global $conn;
-
-    //   error_log("Starting saveTimeData...");
-    //  error_log("Raw data passed to saveTimeData: " . print_r($data, true));
-    //   error_log("log entry NOTES: ".$data['notes']) ;
-
-    // Log binding values
-    //   error_log("Binding values: productid={$data['productid']}, name={$data['name']}, user={$data['user']}, date={$data['date']}, vet={$data['vet']}, courier={$data['courier']}, notes={$data['notes']}, time_ov={$data['time_ov']}, time_cso={$data['time_cso']}, travel_units={$data['travel_units']}, travel_miles={$data['travel_miles']}, certs={$data['certs']}, sha_sa={$data['sha_sa']}");
-
-    //  error_log("SQL statement prepared successfully."); 
-
-    $sql = "INSERT INTO npe_timesheets (productid, name, user, date, vet, courier, notes, time_ov, time_cso, travel_units, travel_miles, certs, tanker_cert, sha_sa)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-    $stmt = $conn->prepare($sql);
-
-    if (!$stmt) {
-           error_log("SQL Prepare Error: " . $conn->error);
-           error_log("SQL : " . $sql);
-        throw new Exception("error: Database error during prepare: " . $conn->error);
-    }
-
-    $bindResult = $stmt->bind_param(
-        'isisidsiidiidi',
-        $data['productid'], 
-        $data['name'], 
-        $data['user'], 
-        $data['date'], 
-        $data['vet'], 
-        $data['courier'], 
-        $data['notes'],
-        $data['time_ov'], 
-        $data['time_cso'], 
-        $data['travel_units'], 
-        $data['travel_miles'], 
-        $data['certs'], 
-        $data['tanker_cert'],
-        $data['sha_sa'] 
-    );
-
-    if (!$bindResult) {
-    //      error_log("SQL Bind Error: " . $stmt->error);
-        throw new Exception("Database error during bind: " . $stmt->error);
-    }
-
-    // Log constructed query
-    $queryString = sprintf(
-        "INSERT INTO npe_timesheets (productid, name, user, date, vet, courier, notes, time_ov, time_cso, travel_units, travel_miles, certs, tanker_cert, sha_sa)
-        VALUES (%d, '%s', %d, '%s', %d, %f, '%s', %d, %d, %d, %d, %d, %d, %d)",
-        $data['productid'], 
-        $conn->real_escape_string($data['name']), 
-        $data['user'], 
-        $conn->real_escape_string($data['date']), 
-        $data['vet'], 
-        $data['courier'], 
-        $conn->real_escape_string($data['notes']),
-        $data['time_ov'], 
-        $data['time_cso'], 
-        $data['travel_units'], 
-        $data['travel_miles'], 
-        $data['certs'], 
-        $data['tanker_cert'] ,
-        $data['sha_sa']
-    );
-    //   error_log("Constructed SQL Query: " . $queryString);
-
-    // Execute statement
-    if (!$stmt->execute()) {
-    //       error_log("SQL Execution Error: " . $stmt->error);
-        throw new Exception("Database error during execute: " . $stmt->error);
-    }
-
-    //   error_log("SQL Execution Successful.");
-    return true;
+    require_once __DIR__ . '/timesheetRates.php';
+    $actor = $conn->prepare('SELECT id FROM cms_adminlogin WHERE username=?');
+    $actor->bind_param('s', $_SESSION['useremail']);
+    $actor->execute();
+    $loggedInUser = $actor->get_result()->fetch_assoc();
+    $actor->close();
+    if (!$loggedInUser) throw new RuntimeException('Please log in again.');
+    $data['user'] = $loggedInUser['id'];
+    $result = insertTimesheetWithRates($conn, $data);
+    return $result['status'] === 'success';
 }
+
 
     // Handle incoming action
     $action = isset($_GET['action']) ? $_GET['action'] : null;

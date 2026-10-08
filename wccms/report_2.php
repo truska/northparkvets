@@ -275,8 +275,8 @@ while ($row = $result->fetch_assoc()) {
                     <td><?= htmlspecialchars($row['vet_name']) ?></td> 
                    
                     <td>
-                        <a href="<?php echo $baseURL;?>/wccms/recordTimeAddv4.php?id=<?= htmlspecialchars($row['id']) ?>" target="_blank" title="Record Time & Costs"><i class='far fa-watch'></i></a> | 
-                        <a href="<?php echo $baseURL;?>/wccms/recordViewv4.php?frm=13&po=<?= htmlspecialchars($row['po']) ?>" target="_blank" title="Review Time & Costs"><i class='fad fa-file-chart-line'></i></a>                        
+                        <a href="<?php echo $baseURL;?>/wccms/recordTimeAddv5.php?id=<?= htmlspecialchars($row['id']) ?>" target="_blank" title="Record Time & Costs"><i class='far fa-watch'></i></a> |
+                        <a href="<?php echo $baseURL;?>/wccms/recordViewv5.php?frm=13&po=<?= htmlspecialchars($row['po']) ?>" target="_blank" title="Review Time & Costs"><i class='fad fa-file-chart-line'></i></a>
                     </td>
 
                 </tr>

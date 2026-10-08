@@ -277,7 +277,7 @@
                                         <i class="fa-regular fa-note-sticky text-success"></i>
                                     </button> &nbsp;&nbsp; 
                                     
-                                    <a href="recordEditv4.php?frm=13&id=${row.id}" class="btn btn-link" target="_blank">
+                                    <a href="recordEditv5.php?frm=13&id=${row.id}" class="btn btn-link" target="_blank">
                                         <i class="fa-regular fa-pen-to-square"></i>
                                     </a>
                                 </td>

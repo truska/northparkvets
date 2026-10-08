@@ -338,6 +338,12 @@ public function getCss()
     */
     function updateTableContent($data)
     {
+        if ($this->tablename === 'npe_timesheets') {
+            foreach (array_keys($data) as $key) {
+                if (str_starts_with($key, 'rate_')) unset($data[$key]);
+            }
+        }
+
         $query = "UPDATE `" . $this->tablename . "` SET ";
         foreach ($data as $key => $value) {
             if ($key != 'formnumber' && $key != 'submit') {

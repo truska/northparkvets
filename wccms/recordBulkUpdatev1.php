@@ -338,6 +338,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $column3 = $_POST['column3'];
     $value3 = $_POST['value3'];
 
+    if ($table_name === 'npe_timesheets') {
+        foreach ([$column1, $column2, $column3] as $column) {
+            if (str_starts_with($column, 'rate_')) {
+                http_response_code(400);
+                exit('Saved timesheet rates cannot be bulk edited.');
+            }
+        }
+    }
+
     // Validate inputs (you might want to add more validation)
     if (empty($table_name) || empty($where_clause) || empty($column1) || empty($value1)) {
         echo "Please fill in all required fields.";

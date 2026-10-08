@@ -240,6 +240,10 @@ function uploadFile($file, $folder, $name)
 
 function replaceURL($url, $frm, $id, $show = null)
 {
+    if (in_array((int)$frm, [13, 21], true)) {
+        $url = preg_replace('/record(Add|Edit|Copy|View)v4\.php/', 'record${1}v5.php', $url);
+    }
+
 	$url = str_replace("[frm]", $frm, $url);
 	$url = str_replace("[id]", $id, $url);
 	if ($show != null) {

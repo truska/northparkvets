@@ -140,6 +140,12 @@ class RecordAdd
     */
    function insertTableContent($data)
    {
+      if ($this->table['name'] === 'npe_timesheets') {
+         require_once __DIR__ . '/timesheetRates.php';
+         global $conn;
+         return insertTimesheetWithRates($conn, $data);
+      }
+
       $query = "INSERT INTO `" . $this->table['name'] . "` (";
       foreach ($data as $key => $value) {
          if ($key != 'formnumber' && $key != 'submit') {

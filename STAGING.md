@@ -28,3 +28,23 @@ Test login/logout, navigation on desktop and mobile, record add/edit/copy, passw
 ## Known deferred work
 
 The preferences constructor issue, unused/missing plugin loading and future two-factor implementation remain deferred. The existing record-copy path also needs workflow testing. This snapshot upgrades Bootstrap, not every JavaScript library. Do not run `wccms/setup-wccms.sh` on the staging clone: it is a legacy script that changes the Git remote.
+
+## Saved-rate schema and migration preview
+
+Run `migrations/001_timesheet_saved_rates.sql` against the selected staging database in phpMyAdmin's SQL tab. This repeatable MariaDB script adds eight nullable DECIMAL(10,2) columns to `npe_timesheets`; it does not populate rates. NULL means not migrated and is distinct from a saved zero rate. The SQL changes the database schema only; Git deployment cannot apply it automatically.
+
+Administrators and Tech users can open `/wccms/rateMigrationPreview.php` after deploying the migration tool. Preview first, using inclusive work-date bounds or leaving both blank to cover all valid-dated records. Applying fills only NULL saved-rate fields; existing saved rates are preserved. Archived and hidden records are included. Invalid dates are skipped and their IDs reported. Missing or duplicate active rates block applying.
+
+The one-off migration applies two confirmed historical overrides: mileage is 0.50 before 1 May 2026 and OV is 2.49 before 1 September 2026. Otherwise it copies currently active rate values from `npe_rates`. It never changes that table. The full three-period migration can therefore run in one operation without temporarily changing current rates. Applying requires an authenticated Admin/Tech POST with CSRF protection and an unchanged preview, and runs in one database transaction. Original modification timestamps are preserved.
+
+For go-live, import the live timesheets, rerun the schema SQL if necessary, then preview and apply against the fresh data. Repeat runs preserve already populated values. Do not expect this NULL-only tool to correct incorrectly populated saved rates. The three invalid-date development records must be corrected or handled separately before they can be migrated.
+
+Existing record save handling and reports still use their original logic; V5 handling and report changes are later stages. New records created through the old handling will have NULL saved rates until migrated. Date-based rate lookup can be added later without changing the saved-rate columns.
+
+## Timesheet V5 entry handling
+
+Deploy the V5 pages and shared controller changes before running `migrations/002_timesheet_v5_menu.sql`. Verified menu IDs: 62 adds form 13; 69 lists form 13 (ALL); 78 lists form 21 (CURRENT, using data form 13). These three entries switch to V5. The Billing Reports menu and global `cms_actions` definitions stay unchanged. V5 lists rewrite their timesheet action links and expose an Admin/Tech link to the retained migration tool.
+
+New timesheets created via the generic add form, booking modal or direct time-entry page save all eight current rates in the initial INSERT, including backdated new work. Copies get current rates and remain hidden as before. Normal edits preserve saved rates and bulk editing of saved-rate columns is blocked. The current rates table must contain exactly one active valid rate per charge type. Existing V4 timesheet creation routes use the same save helper for compatibility.
+
+Financial report calculations have not yet switched to these saved values; that remains the third stage. Client-test add, edit, copy and booking-modal workflows before live deployment.

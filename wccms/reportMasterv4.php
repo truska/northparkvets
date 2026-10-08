@@ -314,7 +314,7 @@ foreach ($processedData as $date => $dateData) {
           //  echo "<td class='text-center'>{$row['CSO']}</td>";
           //  echo "<td class='text-center'>{$row['OV']}</td>";
             echo "<td class='text-center'>{$row['RowTotal']}</td>";
-            echo "<td class='text-center'><a href='/wccms/recordTimeAddv4.php?id=".$row['id']."' target='_blank' title='Record Time & Costs'><i class='far fa-watch'></i></a> | <a href='recordViewv4.php?frm=13&po={$row['name']}'  title='Review Time & Costs'><i class='fad fa-file-chart-line'></i></a></td>";
+            echo "<td class='text-center'><a href='/wccms/recordTimeAddv5.php?id=".$row['id']."' target='_blank' title='Record Time & Costs'><i class='far fa-watch'></i></a> | <a href='recordViewv5.php?frm=13&po={$row['name']}'  title='Review Time & Costs'><i class='fad fa-file-chart-line'></i></a></td>";
             echo '</tr>';
         }
         echo '</tbody>';

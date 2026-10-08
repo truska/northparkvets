@@ -47,3 +47,7 @@ if (!isset($_SESSION["useremail"])) {
    $USER = new CMSUser($_SESSION['useremail']);
    $user = $USER->getUser();
 }
+// Timesheet forms use v5; other forms retain the configured CMS version.
+if (isset($_GET['frm']) && in_array((string)$_GET['frm'], ['13', '21'], true)) {
+    $prefs['prefCMSVer'] = '5';
+}
