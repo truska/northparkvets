@@ -1,0 +1,41 @@
+## New Default .htaccess file
+
+## exports.northparkvets.co.uk
+## npe.witecanvas.com
+
+##redirect 301 index.php https://exports.northparkvets.co.uk/welcome
+##redirect 301 index.html https://exports.northparkvets.co.uk/welcome
+
+
+RewriteEngine on
+RewriteBase /
+
+
+# Don't mess with certain requests eg. from the https ca. 
+RewriteCond %{REQUEST_URI} ^/?\.well-known.*$ [NC,OR]
+RewriteCond %{REQUEST_URI} ^/?robots\.txt$ 
+RewriteRule ^.*$ - [NC,L]
+
+
+#handle www/non-www
+##RewriteCond %{HTTP_HOST} ^exports.northparkvets\.co\.uk [NC]
+##RewriteRule ^(.*)$ https://exports.northparkvets.co.uk/$1 [L,R=301]
+
+
+#handle http/https 
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301,NE]
+
+
+
+# Redirect specific older pages into inside.php
+RewriteRule ^/?$ /welcome [L,NC,QSA]
+RewriteRule ^home/?$ index.php?page=home [L,NC,QSA]
+RewriteRule ^index(.*)$ /welcome/ [L,R=301]
+
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/(favicon\.ico|apple-touch-icon.*\.png)$ [NC]
+RewriteRule ^(.*)$ inside.php?url=$1 [QSA,L]

@@ -1,0 +1,8 @@
+# Development leftovers
+_notes/
+_*
+._*
+*.log
+xx_*/
+bku_*.*
+scripts/*.sh

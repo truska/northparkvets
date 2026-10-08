@@ -1,0 +1,31 @@
+/* Dashboard sidebar styling, scoped away from page tabs. */
+body .header { position: fixed !important; top: 32px !important; }
+#sidebar.wccms-sidebar {
+ position: fixed; top: 132px; left: 0; width: 210px;
+ height: calc(100% - 132px); overflow-y: auto; overflow-x: hidden;
+ background: #2a3542; color: #aeb2b7; z-index: 2000; display: block;
+}
+#sidebar.wccms-sidebar[hidden] { display: none !important; }
+#sidebar.wccms-sidebar ul { list-style: none; padding: 0; margin: 0; }
+#sidebar.wccms-sidebar > ul > li { margin: 0 10px 5px; }
+#sidebar.wccms-sidebar a.wccms-sidebar-link {
+ box-sizing: border-box; display: flex; align-items: center; gap: 10px; min-height: 48px; height: auto;
+ padding: 15px 0; background: transparent; color: #aeb2b7;
+ font-size: 12px; line-height: 18px; text-decoration: none; border: 0;
+ border-radius: 0; text-align: left;
+}
+#sidebar.wccms-sidebar a.wccms-sidebar-link > span { line-height: 18px; flex: 1; }
+#sidebar.wccms-sidebar a.wccms-sidebar-link > i:first-child { width: 20px; font-size: 16px; text-align: center; }
+#sidebar.wccms-sidebar a.wccms-sidebar-link:hover,
+#sidebar.wccms-sidebar a.wccms-sidebar-link:focus-visible { color: #8ac340; }
+#sidebar.wccms-sidebar a.wccms-sidebar-link:focus-visible { outline: 2px solid #8ac340; outline-offset: 2px; }
+#sidebar.wccms-sidebar .wccms-sidebar-chevron { transition: transform .15s ease; }
+#sidebar.wccms-sidebar [aria-expanded="true"] .wccms-sidebar-chevron { transform: rotate(180deg); }
+#sidebar.wccms-sidebar .wccms-sidebar-submenu { background: #35404d; padding: 4px 0; }
+#sidebar.wccms-sidebar .wccms-sidebar-submenu[hidden] { display: none !important; }
+#sidebar.wccms-sidebar .wccms-sidebar-submenu a.wccms-sidebar-link { min-height: 36px; padding: 9px 10px 9px 30px; }
+body.wccms-sidebar-hidden #main-content { margin-left: 0 !important; }
+@media (max-width: 768px) {
+ #sidebar.wccms-sidebar { width: 210px; }
+ body #main-content { margin-left: 0 !important; }
+}

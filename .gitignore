@@ -1,0 +1,31 @@
+# Credentials and server-managed files
+.env
+.env.*
+/private/
+/log/
+/logs/
+/stats/
+/error/
+/standard_index.html
+*.pem
+*.key
+*.sql
+*.sql.gz
+*.dump
+*.log
+*.bak
+*.backup
+# Runtime uploads and generated imports
+/wccms/importfiles/*
+!/wccms/importfiles/.gitkeep
+!/wccms/importfiles/done/
+/wccms/importfiles/done/*
+!/wccms/importfiles/done/.gitkeep
+/wccms/uploadedfiles/*
+!/wccms/uploadedfiles/.htaccess
+!/wccms/uploadedfiles/.gitkeep
+# Editor metadata
+_notes/
+._*
+*~
+.DS_Store
