@@ -16,6 +16,7 @@
 *.bak
 *.backup
 # Runtime uploads and generated imports
+/filestore/
 /wccms/importfiles/*
 !/wccms/importfiles/.gitkeep
 !/wccms/importfiles/done/
