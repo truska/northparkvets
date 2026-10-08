@@ -184,7 +184,7 @@ include("header-code.php") ;
          <h2 class="form-signin-heading">sign in now</h2>
          <div class="login-wrap">
             <input type="text" class="form-control" name="username" placeholder="User ID" autofocus>
-            <input type="password" class="form-control" name="password" placeholder="Password">
+            <input type="password" class="form-control" name="password" placeholder="Password" autocomplete="current-password">
 
             <button class="btn btn-lg btn-login w-100" type="submit" name="sbt">Sign in</button>
 

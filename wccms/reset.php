@@ -110,9 +110,9 @@ if (isset($_POST['repwdSubmit']) && $email !== null) {
          <div class="login-wrap">
             <p><?php echo $email; ?></p>
             <label for="password1">Write the new password:</label>
-            <input type="text" class="form-control" name="password" placeholder="Secure password" id="password1" autofocus>
+            <input type="password" class="form-control" name="password" autocomplete="new-password" placeholder="Secure password" id="password1" autofocus>
             <label for="repassword">Repeat the password:</label>
-            <input type="password" class="form-control" name="repassword" placeholder="Repeat the password" id="repassword">
+            <input type="password" class="form-control" name="repassword" autocomplete="new-password" placeholder="Repeat the password" id="repassword">
 
             <button class="btn btn-lg btn-login w-100" type="submit" name="repwdSubmit">Reset password</button>
          </div>

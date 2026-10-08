@@ -127,7 +127,7 @@ if(isset($_POST["submit"])){
 
                                                 <td>Old Password</td>
 
-                                                <td  colspan="3"> <input type="text" name="oldpassword" required class="form-control"></td>
+                                                <td  colspan="3"> <input type="password" autocomplete="current-password" name="oldpassword" required class="form-control"></td>
 
                                             </tr>
 
@@ -137,7 +137,7 @@ if(isset($_POST["submit"])){
 
                                             <td>New Password</td>
 
-                                                <td  colspan="3"> <input type="text" name="newpassword" required class="form-control"></td>
+                                                <td  colspan="3"> <input type="password" autocomplete="new-password" name="newpassword" required class="form-control"></td>
 
                                             </tr>
 
@@ -148,7 +148,7 @@ if(isset($_POST["submit"])){
 
                                                 <td>Re-type Password</td>
 
-                                                <td  colspan="3"> <input type="text" name="retypepassword" required class="form-control"></td>
+                                                <td  colspan="3"> <input type="password" autocomplete="new-password" name="retypepassword" required class="form-control"></td>
 
                                             </tr>
 
