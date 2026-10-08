@@ -1,4 +1,5 @@
-<?php 
+<?php
+require_once __DIR__ . '/billingAmounts.php';
 
 function fetchBillingDataGeneric($month, $year, $groupBy = 'customer', $customerId = null) {
     global $conn;
@@ -8,7 +9,6 @@ function fetchBillingDataGeneric($month, $year, $groupBy = 'customer', $customer
     $startDate = "$year-$month-01";
     $endDate = date("Y-m-t", strtotime($startDate));
 
-    $rates = fetchRates();
 
     $customerFilter = '';
     if ($customerId && $customerId !== 'all') {
@@ -18,6 +18,8 @@ function fetchBillingDataGeneric($month, $year, $groupBy = 'customer', $customer
     
 
     $query = "SELECT 
+        nt.rate_time_ov, nt.rate_time_cso, nt.rate_travel_units, nt.rate_travel_miles,
+        nt.rate_certs, nt.rate_tanker_cert, nt.rate_sha_sa, nt.rate_courier,
         nt.id, 
         nt.date, 
         nt.time_ov, 
@@ -34,7 +36,7 @@ function fetchBillingDataGeneric($month, $year, $groupBy = 'customer', $customer
         p.archived,             
         p.name AS po, 
         c.name AS customer, 
-        c.code AS customer_code, 
+        c.code AS customer_code, c.id AS customer_id, v.id AS vet_id,
         v.name AS vet
         FROM npe_timesheets nt
         JOIN products p ON nt.productid = p.id
@@ -69,14 +71,11 @@ function fetchBillingDataGeneric($month, $year, $groupBy = 'customer', $customer
             }
         }
 
+        try { $row['amounts'] = billingEntryAmounts($row); }
+        catch (BillingRateException $exception) { billingReportUnavailable($exception); }
         $data[$groupKey]['entries'][] = $row;
 
-        foreach (['time_ov', 'time_cso', 'travel_units', 'travel_miles', 'certs', 'tanker_cert', 'sha_sa', 'courier'] as $col) {
-            $data[$groupKey]['totals']['numeric'][$col] += $row[$col];
-            if (isset($rates[$col])) {
-                $data[$groupKey]['totals']['monetary'][$col] += $row[$col] * $rates[$col]['rate'];
-            }
-        }
+        addBillingEntryTotals($data[$groupKey]['totals'], $row);
     }
     return $data;
 }
@@ -84,26 +83,6 @@ function fetchBillingDataGeneric($month, $year, $groupBy = 'customer', $customer
 
 function fetchBillingDataByVet($month, $year) {
     return fetchBillingDataGeneric($month, $year, 'vet');
-}
-
-
-function fetchRates() {
-    global $conn;
-    $query = "SELECT timeid, rate, units FROM npe_rates WHERE showonweb = 'Yes' AND archived = 0 ";
-  //  error_log("SQL Query for Rates: $query"); // Log the SQL query
-    $result = mysqli_query($conn, $query);
-    if (!$result) {
-        error_log("Error fetching rates: " . mysqli_error($conn)); // Log any SQL error
-    }
-    $rates = [];
-    while ($row = mysqli_fetch_assoc($result)) {
-        $rates[$row['timeid']] = [
-            'rate' => $row['rate'],
-            'units' => $row['units']
-        ];
-    }
-  //  error_log("Rates fetched: " . json_encode($rates)); // Log the fetched rates
-    return $rates;
 }
 
 
@@ -142,6 +121,8 @@ function fetchBillingDataByVetDateRange($fromDate, $toDate, $vetNames = []) {
 
     // SQL Query with proper vet filtering
     $query = "SELECT 
+        nt.rate_time_ov, nt.rate_time_cso, nt.rate_travel_units, nt.rate_travel_miles,
+        nt.rate_certs, nt.rate_tanker_cert, nt.rate_sha_sa, nt.rate_courier,
         nt.id, nt.date, nt.time_ov, nt.time_cso, nt.travel_units, nt.travel_miles, 
         nt.certs, nt.tanker_cert, nt.sha_sa, nt.courier, nt.notes, nt.showonweb, nt.archived,
         p.name AS po, c.name AS customer, c.id AS customer_id, 
@@ -208,27 +189,12 @@ function fetchBillingDataByVetDateRange($fromDate, $toDate, $vetNames = []) {
         }
 
         // Add row to vet's entries
+        try { $row['amounts'] = billingEntryAmounts($row); }
+        catch (BillingRateException $exception) { billingReportUnavailable($exception); }
         $data[$vetKey]['entries'][] = $row;
         //error_log("DEBUG: Added row to entries for Vet: " . $vetKey);
 
-        // Fetch rates once at the beginning
-        //$rates = fetchRates();
-
-        // Accumulate totals
-        foreach (['time_ov', 'time_cso', 'travel_units', 'travel_miles', 'certs', 'tanker_cert', 'sha_sa', 'courier'] as $col) {
-            if (!isset($data[$vetKey]['totals']['numeric'][$col])) {
-              //  error_log("DEBUG: WARNING - Missing total field for {$col}");
-                continue; // Skip this column if it's missing
-            }
-
-            $value = (float)$row[$col]; 
-            $data[$vetKey]['totals']['numeric'][$col] += $value;
-
-            // Calculate monetary totals
-            if (isset($rates[$col])) {
-                $data[$vetKey]['totals']['monetary'][$col] += $value * $rates[$col]['rate'];
-            }
-        }
+        addBillingEntryTotals($data[$vetKey]['totals'], $row);
 
     // Final Debug before returning
     //error_log("DEBUG: Final Data Array Before Return: " . print_r($data, true));
@@ -295,7 +261,9 @@ function generateSubtotalRows($data, $type) {
 function accumulateTotals($source, &$destination) {
     foreach (['numeric', 'monetary'] as $type) {
         foreach ($source[$type] as $key => $value) {
-            $destination[$type][$key] += $value;
+            $destination[$type][$key] = $type === 'monetary'
+                ? ((int)round($destination[$type][$key] * 100) + (int)round($value * 100)) / 100
+                : $destination[$type][$key] + $value;
         }
     }
 }

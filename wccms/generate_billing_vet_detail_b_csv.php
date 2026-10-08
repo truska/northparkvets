@@ -35,7 +35,6 @@ include('setting/main-top-files.php');
 
     // Fetch data
     $data = fetchBillingDataByVetDateRange($fromDate, $toDate, $selectedVets) ;
-    $rates = fetchRates() ; // Fetch rates for financial calculations
 
     // Set CSV headers
     header('Content-Type: text/csv; charset=utf-8');
@@ -70,28 +69,28 @@ include('setting/main-top-files.php');
 
                 // Numeric Values
                 $entry['time_ov'],
-                number_format($entry['time_ov'] * ($rates['time_ov']['rate'] ?? 0), 2),
+                number_format($entry['amounts']['time_ov'], 2),
 
                 $entry['time_cso'],
-                number_format($entry['time_cso'] * ($rates['time_cso']['rate'] ?? 0), 2),
+                number_format($entry['amounts']['time_cso'], 2),
 
                 $entry['travel_units'],
-                number_format($entry['travel_units'] * ($rates['travel_units']['rate'] ?? 0), 2),
+                number_format($entry['amounts']['travel_units'], 2),
 
                 $entry['travel_miles'],
-                number_format($entry['travel_miles'] * ($rates['travel_miles']['rate'] ?? 0), 2),
+                number_format($entry['amounts']['travel_miles'], 2),
 
                 $entry['certs'],
-                number_format($entry['certs'] * ($rates['certs']['rate'] ?? 0), 2),
+                number_format($entry['amounts']['certs'], 2),
 
                 $entry['sha_sa'],
-                number_format($entry['sha_sa'] * ($rates['sha_sa']['rate'] ?? 0), 2),
+                number_format($entry['amounts']['sha_sa'], 2),
 
                 $entry['courier'],
-                number_format($entry['courier'] * ($rates['courier']['rate'] ?? 0), 2),
+                number_format($entry['amounts']['courier'], 2),
 
                 $entry['tanker_cert'],
-                number_format($entry['tanker_cert'] * ($rates['tanker_cert']['rate'] ?? 0), 2),
+                number_format($entry['amounts']['tanker_cert'], 2),
 
                 $entry['notes']
             ], ",", '"', "\\");

@@ -8,7 +8,8 @@ $month = isset($_GET['m']) ? intval($_GET['m']) : date('m');
 $year = isset($_GET['y']) ? intval($_GET['y']) : date('Y');
 
 // Fetch data
-$data = fetchBillingData($month, $year);
+$customerId = $_GET['c'] ?? null;
+$data = fetchBillingData($month, $year, $customerId);
 
 // Set CSV headers
 header('Content-Type: text/csv; charset=utf-8');

@@ -30,7 +30,6 @@
     <?php
     include("include/header.php"); // Added by salva TDR | 2.12.2022
     include("include/sidebar.php");
-    $rates = fetchRates(); // Fetch rates before using them
     ?>
     <!--/ Any Custom styles for alignment and indentation -->
     <style>
@@ -115,14 +114,14 @@
                 </div>
 
                 <div class="col-2 text-right">                    
-                    <a href="generate_billing_vet_pdf.php?m=<?= $month ?>&y=<?= $year ?>&c=<?= $customerId ?>" target="_blank" class="btn btn-primary" style="margin-bottom:10px;">Summary PDF</a>
+                    <a href="generate_billing_vet_pdf.php?m=<?= $month ?>&y=<?= $year ?>" target="_blank" class="btn btn-primary" style="margin-bottom:10px;">Summary PDF</a>
                 </div>
                 <div class="col-2 text-right">
-                    <a href="generate_billing_vet_detail_pdf.php?m=<?= $month ?>&y=<?= $year ?>&c=<?= $customerId ?>" target="_blank" class="btn btn-primary" style="margin-bottom:10px;">Detailed PDF</a>
+                    <a href="generate_billing_vet_detail_pdf.php?m=<?= $month ?>&y=<?= $year ?>" target="_blank" class="btn btn-primary" style="margin-bottom:10px;">Detailed PDF</a>
                 
                     <br>
 
-                    <a href="generate_billing_vet_detail_csv.php?m=<?= $month ?>&y=<?= $year ?>&c=<?= $customerId ?>" target="_blank" class="btn btn-primary">Detailed CSV</a>
+                    <a href="generate_billing_vet_detail_csv.php?m=<?= $month ?>&y=<?= $year ?>" target="_blank" class="btn btn-primary">Detailed CSV</a>
                 </div>
 
                 
@@ -217,17 +216,7 @@
 
 
                                 // Generate overall rate/unit headings
-                                echo "<tr class='table-info rate-row'>
-                                    <td colspan='4'>Rate (per Unit)</td>
-                                    <td class='text-right'>£ " . number_format($rates['time_ov']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['time_ov']['units'] ?? 'N/A') . "</td>
-                                    <td class='text-right'>£ " . number_format($rates['time_cso']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['time_cso']['units'] ?? 'N/A') . "</td>
-                                    <td class='text-right'>£ " . number_format($rates['travel_units']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['travel_units']['units'] ?? 'N/A') . "</td>
-                                    <td class='text-right'>£ " . number_format($rates['travel_miles']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['travel_miles']['units'] ?? 'N/A') . "</td>
-                                    <td class='text-right'>£ " . number_format($rates['certs']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['certs']['units'] ?? 'N/A') . "</td>
-                                    <td class='text-right'>£ " . number_format($rates['tanker_cert']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['tanker_cert']['units'] ?? 'N/A') . "</td>
-                                    <td class='text-right'>£ " . number_format($rates['sha_sa']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['sha_sa']['units'] ?? 'N/A') . "</td>
-                                    <td class='text-right'>£ " . number_format($rates['courier']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['courier']['units'] ?? 'N/A') . "</td>
-                                </tr>";
+                                echo billingSavedRateRow($data);
                             ?>
                         </tbody>
                     </table>

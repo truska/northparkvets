@@ -17,7 +17,7 @@
         $vetNames = isset($_GET['vetName']) ? $_GET['vetName'] : []; // Array for multiple vet selection
 
         // Ensure vetName is retrieved as an array
-        $selectedVets = isset($_GET['vetName']) ? (array) $_GET['vetName'] : ['ALL'];
+        $selectedVets = isset($_GET['vetName']) ? (is_array($_GET['vetName']) ? $_GET['vetName'] : explode(',', $_GET['vetName'])) : ['ALL'];
 
         // Get vet names from database
         $vetNames = getVetNamesByIds($selectedVets);
@@ -44,7 +44,6 @@
     include("include/header.php"); // Added by salva TDR | 2.12.2022
     include("include/sidebar.php");
 
-    $rates = fetchRates(); // Fetch rates before using them
     
     ?>
     <!--/ Any Custom styles for alignment and indentation -->
@@ -142,7 +141,6 @@
                 <?php
                     echo "<div class='table-wrapper' id='main-data-area'>";
                 ?>
-                <!--  <h2>Monthly Billing Report by Vet - <?= date('F Y', strtotime("$year-$month-01")) ?></h2> -->
 
 
             <div id="billing-container">
@@ -225,17 +223,7 @@
                         echo "<tr style='background-color: white;'><td colspan='12'></td></tr>";
 
                         // Generate overall rate/unit headings
-                        echo "<tr class='table-info rate-row'>
-                        <td colspan='4'>Rate (per Unit)</td>
-                        <td class='text-right'>£ " . number_format($rates['time_ov']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['time_ov']['units'] ?? 'N/A') . "</td>
-                        <td class='text-right'>£ " . number_format($rates['time_cso']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['time_cso']['units'] ?? 'N/A') . "</td>
-                        <td class='text-right'>£ " . number_format($rates['travel_units']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['travel_units']['units'] ?? 'N/A') . "</td>
-                        <td class='text-right'>£ " . number_format($rates['travel_miles']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['travel_miles']['units'] ?? 'N/A') . "</td>
-                        <td class='text-right'>£ " . number_format($rates['certs']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['certs']['units'] ?? 'N/A') . "</td>
-                        <td class='text-right'>£ " . number_format($rates['tanker_cert']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['tanker_cert']['units'] ?? 'N/A') . "</td>
-                        <td class='text-right'>£ " . number_format($rates['sha_sa']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['sha_sa']['units'] ?? 'N/A') . "</td>
-                        <td class='text-right'>£ " . number_format($rates['courier']['rate'] ?? 0, 2) . " <br> " . htmlspecialchars($rates['courier']['units'] ?? 'N/A') . "</td>
-                    </tr>";
+                        echo billingSavedRateRow($data);
                     ?>
                     </tbody>
                 </table>

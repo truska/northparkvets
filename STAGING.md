@@ -39,7 +39,7 @@ The one-off migration applies two confirmed historical overrides: mileage is 0.5
 
 For go-live, import the live timesheets, rerun the schema SQL if necessary, then preview and apply against the fresh data. Repeat runs preserve already populated values. Do not expect this NULL-only tool to correct incorrectly populated saved rates. The three invalid-date development records must be corrected or handled separately before they can be migrated.
 
-Existing record save handling and reports still use their original logic; V5 handling and report changes are later stages. New records created through the old handling will have NULL saved rates until migrated. Date-based rate lookup can be added later without changing the saved-rate columns.
+V5 save handling and financial reports now use saved-rate snapshots. Records imported without saved rates must be migrated before financial reporting. Date-based rate lookup can be added later without changing the saved-rate columns.
 
 ## Timesheet V5 entry handling
 
@@ -47,4 +47,12 @@ Deploy the V5 pages and shared controller changes before running `migrations/002
 
 New timesheets created via the generic add form, booking modal or direct time-entry page save all eight current rates in the initial INSERT, including backdated new work. Copies get current rates and remain hidden as before. Normal edits preserve saved rates and bulk editing of saved-rate columns is blocked. The current rates table must contain exactly one active valid rate per charge type. Existing V4 timesheet creation routes use the same save helper for compatibility.
 
-Financial report calculations have not yet switched to these saved values; that remains the third stage. Client-test add, edit, copy and booking-modal workflows before live deployment.
+Financial report calculations use the saved rates on each timesheet. Client-test add, edit, copy and booking-modal workflows before live deployment.
+
+Run `migrations/003_rate_migration_tech_menu.sql` to add **Saved Rates Migration** under **Techie Stuff**. It uses the existing Tech section and allocates the next submenu position without a fixed ID. Repeat runs do not duplicate the link. This menu entry is visible to Tech users; Admin users can still open the migration URL directly.
+
+## Saved-rate financial reporting
+
+Screens, customer/vet PDFs and monetary CSVs calculate each charge from that record's quantity and `rate_*` value. Rates are not fetched from `npe_rates` during reporting. Each individual charge is rounded to pennies, half away from zero; group and period totals sum those rounded charges. Screen rate headings show all saved rates present in the selection. A missing saved rate stops the report with a migration message rather than silently falling back to today's rate or zero.
+
+Existing report inclusion rules remain: hidden/archived timesheets and consignments are excluded, and inner joins require matching consignment, customer and vet records. A timesheet with vet=0 can be saved but is excluded by the existing billing join until a vet is assigned. Test historical months, mixed-rate date ranges, customer/vet filters, PDFs and CSV exports after deployment.

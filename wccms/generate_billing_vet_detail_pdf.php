@@ -16,7 +16,7 @@ $pdf = new TCPDF('L', 'mm', 'A4', true, 'UTF-8', false);
 $pdf->SetCreator(PDF_CREATOR);
 $pdf->SetAuthor('North Park Vets - Export System');
 $pdf->SetTitle("Vet Billing Detail Report - $month/$year");
-$pdf->SetHeaderData('', '', "Vet Billing Detail Report - " . date('F Y', strtotime("$year-$month-01")), '');
+$pdf->SetHeaderData('', 0, "Vet Billing Detail Report - " . date('F Y', strtotime("$year-$month-01")), '');
 $pdf->setHeaderFont(['helvetica', '', 10]);
 $pdf->setFooterFont(['helvetica', '', 8]);
 $pdf->SetMargins(10, 20, 10);

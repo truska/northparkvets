@@ -12,6 +12,7 @@
 *.sql
 !/migrations/001_timesheet_saved_rates.sql
 !/migrations/002_timesheet_v5_menu.sql
+!/migrations/003_rate_migration_tech_menu.sql
 *.sql.gz
 *.dump
 *.log

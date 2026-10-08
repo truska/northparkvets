@@ -93,6 +93,7 @@ $html .= '<tr style="background-color: #f2f2f2;">
             <td align="right">Travel Units</td>
             <td align="right">Travel Miles</td>
             <td align="right">Certs</td>
+            <td align="right">Tanker Certs</td>
             <td align="right">SHA/SA</td>
             <td align="right">Courier</td>
           </tr>';
@@ -107,7 +108,7 @@ if (empty($data)) {
 // Vet Sections
 foreach ($data as $vetName => $vetData) {
     $html .= '<tr style="background-color: #f2f2f2;">
-                <td colspan="7"><strong>Vet: ' . htmlspecialchars($vetName) . '</strong></td>
+                <td colspan="8"><strong>Vet: ' . htmlspecialchars($vetName) . '</strong></td>
               </tr>';
 
     // Unit Totals
@@ -117,6 +118,7 @@ foreach ($data as $vetName => $vetData) {
                 <td align="right">' . $vetData['totals']['numeric']['travel_units'] . '</td>
                 <td align="right">' . $vetData['totals']['numeric']['travel_miles'] . '</td>
                 <td align="right">' . $vetData['totals']['numeric']['certs'] . '</td>
+                <td align="right">' . $vetData['totals']['numeric']['tanker_cert'] . '</td>
                 <td align="right">' . $vetData['totals']['numeric']['sha_sa'] . '</td>
                 <td align="right">£ ' . number_format($vetData['totals']['numeric']['courier'], 2) . '</td>
               </tr>';
@@ -128,24 +130,25 @@ foreach ($data as $vetName => $vetData) {
                 <td align="right">£ ' . number_format($vetData['totals']['monetary']['travel_units'], 2) . '</td>
                 <td align="right">£ ' . number_format($vetData['totals']['monetary']['travel_miles'], 2) . '</td>
                 <td align="right">£ ' . number_format($vetData['totals']['monetary']['certs'], 2) . '</td>
+                <td align="right">£ ' . number_format($vetData['totals']['monetary']['tanker_cert'], 2) . '</td>
                 <td align="right">£ ' . number_format($vetData['totals']['monetary']['sha_sa'], 2) . '</td>
                 <td align="right">£ ' . number_format($vetData['totals']['monetary']['courier'], 2) . '</td>
               </tr>';
 
     // Total for Vet
     $html .= '<tr>
-                <td align="right" colspan="7"><strong>Total for ' . htmlspecialchars($vetName) . ': £ ' . number_format(array_sum($vetData['totals']['monetary']), 2) . '</strong></td>
+                <td align="right" colspan="8"><strong>Total for ' . htmlspecialchars($vetName) . ': £ ' . number_format(array_sum($vetData['totals']['monetary']), 2) . '</strong></td>
               </tr>';
 
     // Slightly reduced spacing row
-    $html .= '<tr style="background-color: #ffffff; height:10px;"><td colspan="7"></td></tr>';
+    $html .= '<tr style="background-color: #ffffff; height:10px;"><td colspan="8"></td></tr>';
 
     accumulateTotals($vetData['totals'], $periodTotals);
 }
 
 // Period Totals
 $html .= '<tr style="background-color: #f2f2f2;">
-            <td colspan="7"><strong>Overall Period Totals</strong></td>
+            <td colspan="8"><strong>Overall Period Totals</strong></td>
           </tr>';
 $html .= '<tr>
             <td align="right">' . $periodTotals['numeric']['time_ov'] . '</td>
@@ -153,11 +156,12 @@ $html .= '<tr>
             <td align="right">' . $periodTotals['numeric']['travel_units'] . '</td>
             <td align="right">' . $periodTotals['numeric']['travel_miles'] . '</td>
             <td align="right">' . $periodTotals['numeric']['certs'] . '</td>
+            <td align="right">' . $periodTotals['numeric']['tanker_cert'] . '</td>
             <td align="right">' . $periodTotals['numeric']['sha_sa'] . '</td>
             <td align="right">£ ' . number_format($periodTotals['numeric']['courier'], 2) . '</td>
           </tr>';
 $html .= '<tr>
-            <td align="right" colspan="7"><strong>Overall Total: £ ' . number_format(array_sum($periodTotals['monetary']), 2) . '</strong></td>
+            <td align="right" colspan="8"><strong>Overall Total: £ ' . number_format(array_sum($periodTotals['monetary']), 2) . '</strong></td>
           </tr>';
 
 $html .= '</table>';
@@ -174,6 +178,6 @@ $pdf->MultiCell(0, 2,
 
 // Output PDF
 ob_end_clean();
-$pdf->Output("{$year}_{$month}_Vet_Billing_Report.pdf", 'I');
+$pdf->Output("Vet_Billing_Report_{$fromDate}_{$toDate}.pdf", 'I');
 exit();
 ?>
