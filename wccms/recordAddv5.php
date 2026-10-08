@@ -1,8 +1,7 @@
-<!-- START recordAddv5 -->
-<!-- WiteCanvasCMS ver 3.0 -->
 <?php
 
-error_reporting(1);
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
 include('setting/main-top-files.php');
 $prefs['prefCMSVer'] = '5';
 if (($_GET['frm'] ?? '') == 21) $_GET['frm'] = '13'; // Added by salva TDR | 16.1.2023
@@ -16,12 +15,6 @@ $baseURL = $BASE_URL;
 // include('wideimage/lib/WideImage.php');
 
 $fileuploadname = "";
-
-if ($TypeDebug == 'Yes' or $userlevel > '20') {
-	echo "<script>alert('Open ID = [" . $_GET['id'] . "]');</script>";
-	echo "<script>alert('Post name = [" . $_POST['name'] . "]');</script>";
-	echo "<script>alert('Post Submit = [" . $_POST['submit'] . "]');</script>";
-}
 
 if (!$formnumber = securityCheck($_GET['frm'], 'number')) {
 	die('Error in the form');
@@ -39,7 +32,8 @@ $form_fields = $FORM->getFormFields(true);
 // echo "</pre>";
 // --- END added by salva TDR | 16.1.2023 ---
 
-if (isset($_POST['submit'])) {
+$saveError = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	$updateData = [];
 	$errors = array();
 
@@ -87,36 +81,34 @@ if (isset($_POST['submit'])) {
 		}
 	}
 
-	foreach ($_POST as $key => $value) {
-		$updateData[$key] = securityCheck($value);
-	}
 
-	$insertResponse = $FORM->insertTableContent($updateData);
+    try {
+        foreach ($_POST as $key => $value) {
+            if (!is_scalar($value)) throw new InvalidArgumentException('Invalid form value.');
+            // The timesheet insert uses prepared parameters, so do not SQL-escape twice.
+            $updateData[$key] = $table['name'] === 'npe_timesheets' ? trim((string)$value) : securityCheck($value);
+        }
+        $insertResponse = $FORM->insertTableContent($updateData);
+        if ($insertResponse['status'] !== 'success') throw new RuntimeException('Unable to save the record.');
+        // Logging failure must not turn an already committed save into a failed save.
+        try {
+            saveLog($_SESSION['useremail'], 'Insert New Record into Form '.$formnumber,
+                $insertResponse['query'], $table['name'], 'SUCCESS', $insertResponse['message'], $insertResponse['recordID']);
+        } catch (Throwable $logError) {
+            error_log('Timesheet saved, but audit logging failed: '.$logError->getMessage());
+        }
+        header('Location: recordEditv5.php?'.http_build_query([
+            'frm'=>$formnumber, 'id'=>$insertResponse['recordID'], 'insert'=>'success',
+            'msg'=>$insertResponse['message']
+        ]), true, 303);
+        exit;
+    } catch (InvalidArgumentException $exception) {
+        $saveError = $exception->getMessage();
+    } catch (Throwable $exception) {
+        error_log('V5 record creation failed: '.$exception->getMessage());
+        $saveError = 'Unable to save. Check that all eight current rates and the saved-rate database columns are configured. Your entries are retained below.';
+    }
 
-	$logtable = $table['name'];
-	$action = "Insert New Record into Form " . $formnumber;
-	$sqlquery = mysqli_real_escape_string($conn, $insertResponse['query']);
-	$notes = $insertResponse['message'];
-	$username = $_SESSION["useremail"];
-
-	if ($insertResponse['status'] == 'error') {
-		$errors = array_merge($errors, $insertResponse);
-		saveLog($username, $action, $sqlquery, $logtable, 'FAIL', $notes, $recordnumber);
-	} else {
-		saveLog($username, $action, $sqlquery, $logtable, 'SUCCESS', $notes, $recordnumber);
-	}
-
-	if (count($errors) > 0) {
-		echo "<pre>";
-		echo "Errors: ";
-		print_r($errors);
-		echo "</pre>";
-		die;
-	}
-
-	echo "<script>
-   	window.location='recordEditv{$prefs["prefCMSVer"]}.php?frm={$formnumber}&id={$insertResponse['recordID']}&insert={$insertResponse['status']}&msg={$insertResponse['message']}';
-   </script>";
 }
 
 ?>
@@ -184,7 +176,10 @@ if (isset($_POST['submit'])) {
 				$infomark = "<i class='fas fa-info-circle' style='color:#28998B; padding-left:10px;'></i>";
 				?>
 
-				<!-- FORM HERE -->
+				<?php if ($saveError !== ''): ?>
+                <div class="alert alert-danger" role="alert"><?= htmlspecialchars($saveError, ENT_QUOTES, 'UTF-8') ?></div>
+                <?php endif; ?>
+                <!-- FORM HERE -->
 				<form role="form" class="form-horizontal" method="post" enctype="multipart/form-data">
 					<?php
 					echo "<p><span style='color:red;'>*</span> Read Only</p><hr>" ;
@@ -265,6 +260,18 @@ if (isset($_POST['submit'])) {
 				</form>
 
 				<!-- Form Ends Here -->
+                <?php if ($saveError !== ''): ?>
+                <script>
+                (() => {
+                    const values = <?= json_encode(array_filter($_POST, 'is_scalar'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
+                    const form = document.querySelector('form.form-horizontal');
+                    for (const [name, value] of Object.entries(values)) {
+                        const field = form.elements.namedItem(name);
+                        if (field && field.type !== 'file' && field.type !== 'submit') field.value = value;
+                    }
+                })();
+                </script>
+                <?php endif; ?>
 
 				<?php
 				if ($form["text"]) {
