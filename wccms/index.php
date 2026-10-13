@@ -136,7 +136,7 @@ if (isset($_POST["sbt"])) {
 <head>
    
    <?php
-include("header-code.php") ;
+require_once __DIR__ . '/include/header-code.php';
 ?>
    <meta charset="utf-8">
    <meta name="viewport" content="width=device-width, initial-scale=1.0">
