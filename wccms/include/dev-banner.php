@@ -12,7 +12,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #c8102e;
+        background: #198754;
         color: #fff;
         font: 700 14px/1 Arial, sans-serif;
         letter-spacing: 1px;
@@ -25,4 +25,4 @@
         body { padding-top: 0 !important; }
     }
 </style>
-<div id="wccms-dev-banner">NEW DEV SITE</div>
+<div id="wccms-dev-banner">NEW SIT [14 Oct 2026]</div>
