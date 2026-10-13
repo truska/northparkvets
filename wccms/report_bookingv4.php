@@ -563,7 +563,7 @@
                                                         data-bs-toggle='modal' 
                                                         data-bs-target='#timeModal' 
                                                         data-name='" . htmlspecialchars($row['name'], ENT_QUOTES) . "' 
-                                                        data-vet='" . htmlspecialchars($row['vet'], ENT_QUOTES) . "' 
+                                                        data-vet='" . htmlspecialchars($row['vet'] ?? '', ENT_QUOTES) . "' 
                                                         data-user='" . htmlspecialchars($user["id"], ENT_QUOTES) . "' 
                                                         data-id='" . htmlspecialchars($row['id'], ENT_QUOTES) . "'>";
                                                             echo "<i class='far fa-watch' aria-hidden='true' style='color:mediumblue;'></i>";
@@ -573,7 +573,7 @@
                                                         data-bs-toggle='modal' 
                                                         data-bs-target='#timereportModal' 
                                                         data-name='" . htmlspecialchars($row['name'], ENT_QUOTES) . "' 
-                                                        data-vet='" . htmlspecialchars($row['vet'], ENT_QUOTES) . "' 
+                                                        data-vet='" . htmlspecialchars($row['vet'] ?? '', ENT_QUOTES) . "' 
                                                         data-user='" . htmlspecialchars($user["id"], ENT_QUOTES) . "' 
                                                         data-id='" . htmlspecialchars($row['id'], ENT_QUOTES) . "'>";
                                                             echo "<i class='fad fa-file-chart-line' aria-hidden='true' style='color:purple;'></i>";
