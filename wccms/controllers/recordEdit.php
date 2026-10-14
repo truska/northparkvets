@@ -344,7 +344,16 @@ public function getCss()
             }
         }
 
-        $query = "UPDATE `" . $this->tablename . "` SET ";
+        // HTML inputs submit empty strings for unset dates and numbers.
+        // Strict SQL mode requires NULL for nullable typed columns.
+        $columns = [];
+        $tableIdentifier = str_replace('`', '``', $this->tablename);
+        $columnResult = DB::query("SHOW COLUMNS FROM `" . $tableIdentifier . "`");
+        while ($column = mysqli_fetch_assoc($columnResult)) {
+            $columns[$column['Field']] = $column;
+        }
+
+        $query = "UPDATE `" . $tableIdentifier . "` SET ";
         foreach ($data as $key => $value) {
             if ($key != 'formnumber' && $key != 'submit') {
                 // Check if the field is a password field
@@ -352,14 +361,30 @@ public function getCss()
                 if ($field && $field['field'] == 2) { // Field type 2 is password
                     $value = md5($value); // Hash the password using MD5
                 }
-                $query .= "`$key` = '$value', ";
+                $column = $columns[$key] ?? null;
+                $nullableTyped = $column && $column['Null'] === 'YES'
+                    && preg_match('/^(?:date|datetime|timestamp|time|year|tinyint|smallint|mediumint|int|bigint|decimal|numeric|float|double|bit)\b/i', $column['Type']);
+                $identifier = str_replace('`', '``', $key);
+                if (($value === '' || $value === null) && $nullableTyped) {
+                    $query .= "`$identifier` = NULL, ";
+                } else {
+                    $query .= "`$identifier` = '$value', ";
+                }
             }
         }
         $query = substr($query, 0, -2); // Remove the last comma
         $query .= " WHERE `id` = '" . $this->record_id . "'";
     
-        $response = DB::query($query);
-    
+        try {
+            $response = DB::query($query);
+        } catch (RuntimeException $error) {
+            return [
+                'status' => 'error',
+                'message' => 'Record update failed. Please check the entered values or contact an administrator.',
+                'query' => $query
+            ];
+        }
+
         if ($response) {
             return [
                 'status' => 'success',
