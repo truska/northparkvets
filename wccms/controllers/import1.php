@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/productInsert.php';
 /**
  * Importing Functions
- * 
+ *
  *
  **/
 
@@ -119,7 +120,7 @@ function normalizeDate($dateValue) {
 
 function excelDateToPHPDate($excelDate) {
     // Excel's base date is 1900-01-01; adjust for the 1900 leap year bug
-    $baseDate = new DateTime('1899-12-30'); 
+    $baseDate = new DateTime('1899-12-30');
     return $baseDate->add(new DateInterval("P{$excelDate}D"))->format('Y-m-d');
 }
 
@@ -138,8 +139,8 @@ if (!function_exists('logProcessUpdate')) {
         $db = DB::connection();
 
         // SQL Query to update the log record
-        $sql = "UPDATE product_import_log 
-                SET status = ?, modified = NOW(), notes = ? 
+        $sql = "UPDATE product_import_log
+                SET status = ?, modified = NOW(), notes = ?
                 WHERE id = ?";
 
         // Prepare and execute the query
@@ -203,7 +204,7 @@ if (!function_exists('importDataToTempTable')) {
                     'expected_time' => 1,           // Column B
                     'in_out' => 2,                  // Column C
                     'depot' => 3,                   // Column D
-                    'account' => 4,                 // Column E                    
+                    'account' => 4,                 // Column E
                     'pcloud' => 6,                  // Column G
                     'po' => 5,                      // Column F
                     'destination_customer' => 7,    // Column H
@@ -290,12 +291,16 @@ if (!function_exists('importDataToTempTable')) {
             $row = 0;
             while (($data = fgetcsv($handle, null, ",", '"', "\\")) !== false) {
                 $row++;
-                //if ($row == 1) {
-                    // Skip header row
-                 //   continue;
-                //}
+                // Keep the standard CSV header, but do not insert it as data.
+                // Detect it by the mapped columns so headerless files retain row 1.
+                $countLabel = strtolower(trim((string)($data[$mapping['pallet_count']] ?? '')));
+                $dateLabel = strtolower(trim((string)($data[$mapping['expected_date']] ?? ''), "\xEF\xBB\xBF \t\r\n\""));
+                if (in_array($countLabel, ['count', 'pallet count', 'pallet_count'], true)
+                    && strpos($dateLabel, 'date') !== false) {
+                    continue;
+                }
 
-                $values = []; //clear / reset array 
+                $values = []; //clear / reset array
 
 
                 foreach ($targetColumns as $col) {
@@ -328,7 +333,7 @@ if (!function_exists('importDataToTempTable')) {
                     error_log("Row $row: Values -> " . json_encode($values));
                 }
                 */
-                
+
                 /*
                     foreach ($mapping as $column => $csvIndex) {
                         if (is_numeric($csvIndex)) {
@@ -369,9 +374,21 @@ if (!function_exists('importDataToTempTable')) {
                 // Bind and execute the query
                 $stmt->bind_param("sssssssssssssss", ...$values);
 
-                if (!$stmt->execute()) {
+                try {
+                    $inserted = $stmt->execute();
+                } catch (mysqli_sql_exception $exception) {
+                    error_log("CSV import failed on row $row: " . $exception->getMessage());
                     fclose($handle);
-                    return ['success' => false, 'message' => "Failed to insert data on row $row: " . $stmt->error];
+                    $stmt->close();
+                    $db->close();
+                    return ['success' => false, 'message' => "Database error importing CSV row $row. Check the server error log for details."];
+                }
+                if (!$inserted) {
+                    $error = $stmt->error;
+                    fclose($handle);
+                    $stmt->close();
+                    $db->close();
+                    return ['success' => false, 'message' => "Failed to insert data on row $row: " . $error];
                 }
             }
             fclose($handle);
@@ -412,154 +429,159 @@ if (!function_exists('truncateTempTable')) {
 if (!function_exists('processImportedData')) {
     function processImportedData($logID) {
         $db = DB::connection();
+        try {
 
-        // Truncate the products_processed table
-        $truncateSql = "TRUNCATE TABLE products_processed";
-        if (!$db->query($truncateSql)) {
-            return ['success' => false, 'message' => "Failed to truncate `products_processed`: " . $db->error];
-        }
+            // Truncate the products_processed table
+            $truncateSql = "TRUNCATE TABLE products_processed";
+            if (!$db->query($truncateSql)) {
+                return ['success' => false, 'message' => "Failed to truncate `products_processed`: " . $db->error];
+            }
 
-        // Fetch rows from the `products_import` table
-        $sql = "SELECT * FROM products_import";
-        $result = $db->query($sql);
+            // Fetch rows from the `products_import` table
+            $sql = "SELECT * FROM products_import";
+            $result = $db->query($sql);
 
-        if (!$result) {
-            return ['success' => false, 'message' => "Failed to fetch imported data: " . $db->error];
-        }
+            if (!$result) {
+                return ['success' => false, 'message' => "Failed to fetch imported data: " . $db->error];
+            }
 
-        // Prepare exception table insert query
-        $exceptionSql = "INSERT INTO product_import_exceptions (importid, po, fieldname, fieldvalue, notes, created)
-                         VALUES (?, ?, ?, ?, ?, NOW())";
-            error_log("Exception sql: ".$exceptionSql) ;
-         
-        $exceptionStmt = $db->prepare($exceptionSql);
+            // Prepare exception table insert query
+            $exceptionSql = "INSERT INTO product_import_exceptions (importid, po, fieldname, fieldvalue, notes, userid, created)
+                             VALUES (?, ?, ?, ?, ?, '', NOW())";
+                error_log("Exception sql: ".$exceptionSql) ;
 
-            if (!$exceptionStmt) {
-            error_log("Failed to prepare exception SQL: " . $db->error);
-            die("Error: Could not prepare exception SQL.");
-        }    
+            $exceptionStmt = $db->prepare($exceptionSql);
+
+                if (!$exceptionStmt) {
+                error_log("Failed to prepare exception SQL: " . $db->error);
+                throw new RuntimeException("Could not prepare exception logging.");
+            }
 
 
-        // Prepare `products_processed` insert query
-        // updated for extra fields
-        $processedSql = "INSERT INTO products_processed (
-            expected_date, expected_time, in_out, depot, account, po, pcloud,
-            destination_customer, destination_country, product_type, pallet_type,
-            pallet_count, tanker, ehc_ref
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        $processedStmt = $db->prepare($processedSql);
-        if (!$processedStmt) {
-            return ['success' => false, 'message' => "Failed to prepare `products_processed` statement: " . $db->error];
-        }
-        /*
-            $processedSql = "INSERT INTO products_processed (expected_date, expected_time, in_out, depot, account, po, pcloud, destination_customer, destination_country, product_type, pallet_type, pallet_count)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" ;
+            // Prepare `products_processed` insert query
+            // updated for extra fields
+            $processedSql = "INSERT INTO products_processed (
+                expected_date, expected_time, in_out, depot, account, po, pcloud,
+                destination_customer, destination_country, product_type, pallet_type,
+                pallet_count, tanker, ehc_ref
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $processedStmt = $db->prepare($processedSql);
             if (!$processedStmt) {
                 return ['success' => false, 'message' => "Failed to prepare `products_processed` statement: " . $db->error];
             }
-        */
+            /*
+                $processedSql = "INSERT INTO products_processed (expected_date, expected_time, in_out, depot, account, po, pcloud, destination_customer, destination_country, product_type, pallet_type, pallet_count)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" ;
+                $processedStmt = $db->prepare($processedSql);
+                if (!$processedStmt) {
+                    return ['success' => false, 'message' => "Failed to prepare `products_processed` statement: " . $db->error];
+                }
+            */
 
-        echo "<h3>Processed Records:</h3><ul>";
+            echo "<h3>Processed Records:</h3><ul>";
 
-        while ($row = $result->fetch_assoc()) {
-            if (!(
-                $row['in_out'] === 'outbound' ||
-                $row['region'] === 'EU' ||
-                $row['region'] === 'Overseas'
-            )) {
-                continue;
-            }
+            while ($row = $result->fetch_assoc()) {
+                if (!(
+                    $row['in_out'] === 'outbound' ||
+                    $row['region'] === 'EU' ||
+                    $row['region'] === 'Overseas'
+                )) {
+                    continue;
+                }
 
-            // Ensure `expected_date` is not empty
-            if (empty($row['expected_date'])) {
-                echo "<p>Invalid or missing date for expected_date | PO: {$row['po']}</p>";
-                $row['expected_date'] = null;
-            }
+                // Ensure `expected_date` is not empty
+                if (empty($row['expected_date'])) {
+                    echo "<p>Invalid or missing date for expected_date | PO: {$row['po']}</p>";
+                    $row['expected_date'] = null;
+                }
 
-            // Validate fields and handle exceptions
-            $fields = ['depot', 'account', 'destination_country'];
-            $validationTables = [
-                'depot' => 'npe_depot',
-                'account' => 'npe_customer',
-                'destination_country' => 'npe_destination'
-            ];
-            $validatedData = [];
-            $exceptions = false;
+                // Validate fields and handle exceptions
+                $fields = ['depot', 'account', 'destination_country'];
+                $validationTables = [
+                    'depot' => 'npe_depot',
+                    'account' => 'npe_customer',
+                    'destination_country' => 'npe_destination'
+                ];
+                $validatedData = [];
+                $exceptions = false;
 
-            foreach ($fields as $field) {
-                if (!empty($row[$field])) {
-                    $checkSql = "SELECT id FROM {$validationTables[$field]} WHERE code = ? OR name = ?";
-                    $checkStmt = $db->prepare($checkSql);
-                    $fieldValue = $row[$field];
-                    $checkStmt->bind_param("ss", $fieldValue, $fieldValue);
-                    $checkStmt->execute();
-                    $checkStmt->store_result();
+                foreach ($fields as $field) {
+                    if (!empty($row[$field])) {
+                        $checkSql = "SELECT id FROM {$validationTables[$field]} WHERE code = ? OR name = ?";
+                        $checkStmt = $db->prepare($checkSql);
+                        $fieldValue = $row[$field];
+                        $checkStmt->bind_param("ss", $fieldValue, $fieldValue);
+                        $checkStmt->execute();
+                        $checkStmt->store_result();
 
-                    if ($checkStmt->num_rows > 0) {
-                        $checkStmt->bind_result($validatedID);
-                        $checkStmt->fetch();
-                        $validatedData[$field] = $validatedID;
+                        if ($checkStmt->num_rows > 0) {
+                            $checkStmt->bind_result($validatedID);
+                            $checkStmt->fetch();
+                            $validatedData[$field] = $validatedID;
+                        } else {
+                            // Log to exception table
+                            $exceptions = true;
+                            $importID = $logID;
+                            $poValue = $row['po'];
+                            $fieldname = $field;
+                            $fieldvalue = $row[$field];
+                            $notes = "the lookup record for '".$fieldvalue."' was not found in the ".$fieldname." table" ;
+
+                            $exceptionStmt->bind_param(
+                                "issss",
+                                $importID,
+                                $poValue,
+                                $fieldname,
+                                $fieldvalue ,
+                                $notes
+                            );
+                            $exceptionStmt->execute();
+
+                            echo "<p>Exception: PO {$poValue}, Field '{$fieldname}', Value '{$fieldvalue}' does not exist.</p>";
+
+                            $validatedData[$field] = null;
+                        }
+                        $checkStmt->close();
                     } else {
-                        // Log to exception table
-                        $exceptions = true;
-                        $importID = $logID;
-                        $poValue = $row['po'];
-                        $fieldname = $field;
-                        $fieldvalue = $row[$field];
-                        $notes = "the lookup record for '".$fieldvalue."' was not found in the ".$fieldname." table" ;
-                        
-                        $exceptionStmt->bind_param(
-                            "issss",
-                            $importID,
-                            $poValue,
-                            $fieldname,
-                            $fieldvalue ,
-                            $notes                           
-                        );
-                        $exceptionStmt->execute();
-
-                        echo "<p>Exception: PO {$poValue}, Field '{$fieldname}', Value '{$fieldvalue}' does not exist.</p>";
-
                         $validatedData[$field] = null;
                     }
-                    $checkStmt->close();
-                } else {
-                    $validatedData[$field] = null;
+                }
+
+                // Insert into `products_processed`
+                $processedStmt->bind_param(
+                    "ssssssssssssss",
+                    $row['expected_date'],
+                    $row['expected_time'],
+                    $row['in_out'],
+                    $validatedData['depot'],
+                    $validatedData['account'],
+                    $row['po'],
+                    $row['pcloud'],
+                    $row['destination_customer'],
+                    $validatedData['destination_country'],
+                    $row['product_type'],
+                    $row['pallet_type'],
+                    $row['pallet_count'],
+                    $row['tanker'],     // NEW
+                    $row['ehc_ref']     // NEW
+                );
+
+                if ($processedStmt->execute()) {
+                    $processedID = $db->insert_id;
                 }
             }
 
-            // Insert into `products_processed`
-            $processedStmt->bind_param(
-                "ssssssssssssss",
-                $row['expected_date'],
-                $row['expected_time'],
-                $row['in_out'],
-                $validatedData['depot'],
-                $validatedData['account'],
-                $row['po'],
-                $row['pcloud'],
-                $row['destination_customer'],
-                $validatedData['destination_country'],
-                $row['product_type'],
-                $row['pallet_type'],
-                $row['pallet_count'],
-                $row['tanker'],     // NEW
-                $row['ehc_ref']     // NEW
-            );
+            echo "</ul>";
 
-            if ($processedStmt->execute()) {
-                $processedID = $db->insert_id;
-            }
+            $exceptionStmt->close();
+            $processedStmt->close();
+            return ['success' => true, 'message' => "Processing completed successfully."];
+        } catch (Throwable $exception) {
+            error_log('CSV processing failed: ' . $exception->getMessage());
+            return ['success' => false, 'message' => 'Unable to process CSV data. Check the dates, times and quantities, or see the server error log for details.'];
+        } finally {
+            $db->close();
         }
-
-        echo "</ul>";
-
-        $exceptionStmt->close();
-        $processedStmt->close();
-        $db->close();
-
-        return ['success' => true, 'message' => "Processing completed successfully."];
     }
 }
 
@@ -568,148 +590,109 @@ if (!function_exists('updateLiveTable')) {
     function updateLiveTable($logID) {
         // Database connection
         $db = DB::connection();
+        try {
+            $db->begin_transaction();
 
-        global $userID;
-        error_log("In Process Live User ID:".$userID);
+            global $userID;
+            error_log("In Process Live User ID:".$userID);
 
-        // Count exceptions for this import
-        $exceptionCountSql = "SELECT COUNT(*) as exception_count FROM product_import_exceptions WHERE importid = ?";
-        $exceptionStmt = $db->prepare($exceptionCountSql);
-        $exceptionStmt->bind_param("i", $logID);
-        $exceptionStmt->execute();
-        $exceptionStmt->bind_result($exceptionCount);
-        $exceptionStmt->fetch();
-        $exceptionStmt->close();
+            // Count exceptions for this import
+            $exceptionCountSql = "SELECT COUNT(*) as exception_count FROM product_import_exceptions WHERE importid = ?";
+            $exceptionStmt = $db->prepare($exceptionCountSql);
+            $exceptionStmt->bind_param("i", $logID);
+            $exceptionStmt->execute();
+            $exceptionStmt->bind_result($exceptionCount);
+            $exceptionStmt->fetch();
+            $exceptionStmt->close();
 
-        // Fetch rows from `products_processed`
-        $fetchProcessedSql = "SELECT * FROM products_processed";
-        $processedResult = $db->query($fetchProcessedSql);
+            // Fetch rows from `products_processed`
+            $fetchProcessedSql = "SELECT * FROM products_processed";
+            $processedResult = $db->query($fetchProcessedSql);
 
-        if (!$processedResult) {
-            return ['success' => false, 'message' => "Failed to fetch processed data: " . $db->error];
-        }
-
-
-        $insertCount = 0; // Track number of records inserted
-
-        // Prepare exception insertion
-        $exceptionSql = "INSERT INTO product_import_exceptions (importid, po, notes, created)
-                         VALUES (?, ?, ?, NOW())";
-        $exceptionStmt = $db->prepare($exceptionSql);
-
-        while ($row = $processedResult->fetch_assoc()) {
-
-            $name = $row['po']; // Use `po` from processed table as `name`
-
-            // Calculate the week number from `expected_date`
-            $weeknum = null;
-            if (!empty($row['expected_date'])) {
-                $date = DateTime::createFromFormat('Y-m-d', $row['expected_date']);
-                if ($date) {
-                    $weeknum = $date->format('W'); // Week number
-                }
+            if (!$processedResult) {
+                return ['success' => false, 'message' => "Failed to fetch processed data: " . $db->error];
             }
 
-            // Check if `name` exists in `products`
-            $nameCheckSql = "SELECT id FROM products WHERE name = ? ORDER BY created DESC LIMIT 1";
-            $nameCheckStmt = $db->prepare($nameCheckSql);
-            $nameCheckStmt->bind_param("s", $name);
-            $nameCheckStmt->execute();
-            $nameCheckStmt->store_result();
 
-            if ($nameCheckStmt->num_rows > 0) {
-                // Update `status` of most recent occurrences to 10
-                $updateStatusSql = "UPDATE `products` SET `status` = 10 WHERE `name` = ?";
-                $updateStatusStmt = $db->prepare($updateStatusSql);
-                $updateStatusStmt->bind_param("s", $name);
-                $updateStatusStmt->execute();
-                $updateStatusStmt->close();
+            $insertCount = 0; // Track number of records inserted
 
-                // Add to exceptions table
-                $notes = "Duplicate PO - Rolled forward";
-               // $userid = $userID; // Replace with actual user ID when available
-                $exceptionStmt->bind_param("iss", $logID, $name, $notes);
-                if ($exceptionStmt->execute()) {
-                    echo "<p>Exception: Duplicate PO '{$name}' rolled forward and logged.</p>";
-                } else {
-                    error_log("Failed to log exception for PO '{$name}': " . $exceptionStmt->error);
+            // Prepare exception insertion
+            $exceptionSql = "INSERT INTO product_import_exceptions (importid, po, notes, fieldname, fieldvalue, userid, created)
+                             VALUES (?, ?, ?, '', '', '', NOW())";
+            $exceptionStmt = $db->prepare($exceptionSql);
+
+            while ($row = $processedResult->fetch_assoc()) {
+
+                $name = $row['po']; // Use `po` from processed table as `name`
+
+                // Calculate the week number from `expected_date`
+                $weeknum = null;
+                if (!empty($row['expected_date'])) {
+                    $date = DateTime::createFromFormat('Y-m-d', $row['expected_date']);
+                    if ($date) {
+                        $weeknum = $date->format('W'); // Week number
+                    }
                 }
-            }
-            $nameCheckStmt->close();
 
-            // Insert the new record into `products`
-            // New for extrat fields
-            $insertSql = "INSERT INTO products (
-                `expected_date`, `expected_time`, `in_out`, `depot`, `pcloud`, `account`,
-                `name`, `destination_customer`, `destination_country`, `product_type`,
-                `pallet_type`, `pallet_count`, `tanker`, `ehc_ref`, `importbatch`, `weeknum`
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            $insertStmt = $db->prepare($insertSql);
-            
-            $insertStmt->bind_param(
-                "ssssssssssssssii",
-                $row['expected_date'],
-                $row['expected_time'],
-                $row['in_out'],
-                $row['depot'],
-                $row['pcloud'],
-                $row['account'],
-                $name,                           // (PO used as name)
-                $row['destination_customer'],
-                $row['destination_country'],
-                $row['product_type'],
-                $row['pallet_type'],
-                $row['pallet_count'],
-                $row['tanker'],                  // NEW
-                $row['ehc_ref'],                 // NEW
-                $logID,
-                $weeknum
-            );
-            
-            /*          
-                $insertSql = "INSERT INTO products (`expected_date`, `expected_time`, `in_out`, `depot`,  `pcloud`, `account`, `name`, `destination_customer`, `destination_country`, `product_type`, `pallet_type`, `pallet_count`, `importbatch`, `weeknum`)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-                $insertStmt = $db->prepare($insertSql);
-                $insertStmt->bind_param(
-                    "sssssssssssiii",
-                    $row['expected_date'],
-                    $row['expected_time'],
-                    $row['in_out'],
-                    $row['depot'],
-                    $row['pcloud'],
-                    $row['account'],
-                    $name,              // Use `name` instead of `po`
-                    $row['destination_customer'],
-                    $row['destination_country'],
-                    $row['product_type'],
-                    $row['pallet_type'],
-                    $row['pallet_count'],
-                    $logID, // Include the logID for importbatch
-                    $weeknum // Include the week number
-                );
-            */
-            if ($insertStmt->execute()) {
+                // Check if `name` exists in `products`
+                $nameCheckSql = "SELECT id FROM products WHERE name = ? ORDER BY created DESC LIMIT 1";
+                $nameCheckStmt = $db->prepare($nameCheckSql);
+                $nameCheckStmt->bind_param("s", $name);
+                $nameCheckStmt->execute();
+                $nameCheckStmt->store_result();
+
+                if ($nameCheckStmt->num_rows > 0) {
+                    // Update `status` of most recent occurrences to 10
+                    $updateStatusSql = "UPDATE `products` SET `status` = 10 WHERE `name` = ?";
+                    $updateStatusStmt = $db->prepare($updateStatusSql);
+                    $updateStatusStmt->bind_param("s", $name);
+                    $updateStatusStmt->execute();
+                    $updateStatusStmt->close();
+
+                    // Add to exceptions table
+                    $notes = "Duplicate PO - Rolled forward";
+                   // $userid = $userID; // Replace with actual user ID when available
+                    $exceptionStmt->bind_param("iss", $logID, $name, $notes);
+                    if ($exceptionStmt->execute()) {
+                        $exceptionCount++;
+                        echo "<p>Exception: Duplicate PO '{$name}' rolled forward and logged.</p>";
+                    } else {
+                        error_log("Failed to log exception for PO '{$name}': " . $exceptionStmt->error);
+                    }
+                }
+                $nameCheckStmt->close();
+
+                // Use the same explicit defaults as manual consignment creation.
+                $productData = array_intersect_key($row, array_flip([
+                    'expected_date', 'expected_time', 'in_out', 'depot', 'pcloud', 'account',
+                    'destination_customer', 'destination_country', 'product_type',
+                    'pallet_type', 'pallet_count', 'tanker', 'ehc_ref',
+                ]));
+                $productData['name'] = $name;
+                $productData['importbatch'] = $logID;
+                $productData['weeknum'] = $weeknum;
+                insertProductRecord($db, $productData);
                 $insertCount++;
-            } else {
-                error_log("Error inserting record into products: " . $insertStmt->error);
-                echo "<p>Error inserting record into products: {$insertStmt->error}</p>";
             }
-            $insertStmt->close();
+
+            $exceptionStmt->close();
+
+            // Update the log
+            $logUpdateSql = "UPDATE product_import_log SET status = 6, notes = CONCAT(notes, ' | Records Inserted = ', ?, ' | Exceptions = ', ?) WHERE id = ?";
+            $logUpdateStmt = $db->prepare($logUpdateSql);
+            $logUpdateStmt->bind_param("iii", $insertCount, $exceptionCount, $logID);
+            $logUpdateStmt->execute();
+            $logUpdateStmt->close();
+
+            $db->commit();
+            return ['success' => true, 'message' => "Live table updated successfully. Records inserted: $insertCount"];
+        } catch (Throwable $exception) {
+            $db->rollback();
+            error_log('Consignment import failed: ' . $exception->getMessage());
+            return ['success' => false, 'message' => 'Unable to update consignments. No changes from this step were saved. Check the server error log for details.'];
+        } finally {
+            $db->close();
         }
-
-        $exceptionStmt->close();
-
-        // Update the log
-        $logUpdateSql = "UPDATE product_import_log SET status = 6, notes = CONCAT(notes, ' | Records Inserted = ', ?, ' | Exceptions = ', ?) WHERE id = ?";
-        $logUpdateStmt = $db->prepare($logUpdateSql);
-        $logUpdateStmt->bind_param("iii", $insertCount, $exceptionCount, $logID);
-        $logUpdateStmt->execute();
-        $logUpdateStmt->close();
-
-        // Close database connection
-        $db->close();
-
-        return ['success' => true, 'message' => "Live table updated successfully. Records inserted: $insertCount"];
     }
 }
 
@@ -744,10 +727,10 @@ if (!function_exists('archiveSourceFile')) {
 if (!function_exists('logProcessCompletion')) {
     function logProcessCompletion($logID, $notes) {
         $db = DB::connection();
-        $sql = "UPDATE product_import_log 
-                SET status = 9, 
-                    finished = NOW(), 
-                    notes = CONCAT(notes, ' | ', ?) 
+        $sql = "UPDATE product_import_log
+                SET status = 9,
+                    finished = NOW(),
+                    notes = CONCAT(notes, ' | ', ?)
                 WHERE id = ?";
         $stmt = $db->prepare($sql);
 

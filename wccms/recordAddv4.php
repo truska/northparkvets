@@ -86,7 +86,8 @@ if (isset($_POST['submit'])) {
 	}
 
 	foreach ($_POST as $key => $value) {
-		$updateData[$key] = securityCheck($value);
+		$updateData[$key] = $table['name'] === 'products'
+            ? trim((string)$value) : securityCheck($value);
 	}
 
 	$insertResponse = $FORM->insertTableContent($updateData);

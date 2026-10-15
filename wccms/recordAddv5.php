@@ -85,8 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         foreach ($_POST as $key => $value) {
             if (!is_scalar($value)) throw new InvalidArgumentException('Invalid form value.');
-            // The timesheet insert uses prepared parameters, so do not SQL-escape twice.
-            $updateData[$key] = $table['name'] === 'npe_timesheets' ? trim((string)$value) : securityCheck($value);
+            // Prepared inserts receive raw values rather than SQL-escaped text.
+            $updateData[$key] = in_array($table['name'], ['npe_timesheets', 'products'], true) ? trim((string)$value) : securityCheck($value);
         }
         $insertResponse = $FORM->insertTableContent($updateData);
         if ($insertResponse['status'] !== 'success') throw new RuntimeException('Unable to save the record.');

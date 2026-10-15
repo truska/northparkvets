@@ -140,6 +140,21 @@ class RecordAdd
     */
    function insertTableContent($data)
    {
+      if ($this->table['name'] === 'products') {
+         require_once __DIR__ . '/productInsert.php';
+         $connection = DB::connection();
+         try {
+            return insertProductRecord($connection, $data);
+         } catch (Throwable $exception) {
+            error_log('Manual consignment insert failed: ' . $exception->getMessage());
+            $message = $exception instanceof InvalidArgumentException
+               ? $exception->getMessage() : 'Unable to save the consignment. Check the server error log for details.';
+            return ['status' => 'error', 'message' => $message, 'query' => 'INSERT INTO products'];
+         } finally {
+            $connection->close();
+         }
+      }
+
       if ($this->table['name'] === 'npe_timesheets') {
          require_once __DIR__ . '/timesheetRates.php';
          global $conn;
