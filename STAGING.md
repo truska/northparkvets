@@ -56,3 +56,35 @@ Run `migrations/003_rate_migration_tech_menu.sql` to add **Saved Rates Migration
 Screens, customer/vet PDFs and monetary CSVs calculate each charge from that record's quantity and `rate_*` value. Rates are not fetched from `npe_rates` during reporting. Each individual charge is rounded to pennies, half away from zero; group and period totals sum those rounded charges. Screen rate headings show all saved rates present in the selection. A missing saved rate stops the report with a migration message rather than silently falling back to today's rate or zero.
 
 Existing report inclusion rules remain: hidden/archived timesheets and consignments are excluded, and inner joins require matching consignment, customer and vet records. A timesheet with vet=0 can be saved but is excluded by the existing billing join until a vet is assigned. Test historical months, mixed-rate date ranges, customer/vet filters, PDFs and CSV exports after deployment.
+
+## Strict SQL defaults migration
+
+Migration `004_required_defaults.sql` adds the agreed defaults to products, import exceptions,
+depot visits, gallery metadata, destinations, destination statuses, snags, snag statuses and
+rate identifiers. It changes defaults only; existing records, types, nullability and password
+handling stay intact. New snags start at status 1 (Snag Raised), with vet/admin 0 (unassigned).
+A new rate gets the placeholder `new_id` and still requires developer configuration before use.
+
+After deploying, run from the web document root using the site's PHP CLI and existing sibling
+`private/db.php` credentials. The runner is CLI-only and previews by default:
+
+```sh
+php migrations/004_required_defaults.php
+php migrations/004_required_defaults.php --apply --database=YOUR_LIVE_DATABASE_NAME
+```
+
+Replace the database name with the actual selected live database shown by the preview. The
+runner checks all columns, types, conflicting defaults and the three reference IDs before any
+ALTER, and prevents concurrent migration runs. It waits at most ten seconds for metadata locks.
+The apply command can also run from deployment automation; it exits nonzero on failure.
+It does not run automatically on page loads or Git pulls.
+
+The runner saves a schema snapshot in the server temporary directory before applying and prints
+its path; retain that file. For manual SQL execution, keep a schema backup first. MariaDB commits
+DDL per statement, so this is not one transaction;
+a later failure can leave earlier table defaults applied. Fix the reported issue and rerun:
+matching defaults are accepted and existing records are never rewritten. The SQL file can also
+be pasted into phpMyAdmin after manually checking the selected database and reference IDs.
+
+Run `php tests/required_defaults_test.php` for isolated integration checks against temporary
+copies of the configured database tables. It never changes defaults on the real tables.
