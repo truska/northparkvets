@@ -16,6 +16,7 @@
 !/migrations/004_required_defaults.sql
 !/migrations/005_vet_dropdown_archive_filter.sql
 !/migrations/006_expected_time_quarter_hours.sql
+!/migrations/007_audit_username_length.sql
 *.sql.gz
 *.dump
 *.log

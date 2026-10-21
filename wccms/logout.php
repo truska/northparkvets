@@ -1,7 +1,8 @@
 <?php
 include ('setting/main-top-files.php'); 
 
-    $logtable = $table['name'];
+    $logtable = 'N/A';
+    $recordnumber = 0;
     $action = "LogOut" ;
     $sqlquery = "N/A";
     $notes = "User Logged Out using Logout Button";

@@ -85,7 +85,6 @@ foreach ([4,5,6,7,8,9,10,14,15,16,17,18,19] as $formId) {
 require dirname(__DIR__) . '/wccms/include/functions.php';
 require dirname(__DIR__) . '/wccms/controllers/formField.php';
 $page = file_get_contents(dirname(__DIR__) . '/wccms/recordAddv4.php');
-$page = substr($page, 0, strpos($page, '<!-- Trigger the modal with a button -->'));
 $page = preg_replace('/\binclude\([^;]+\);/', '', $page);
 $page = preg_replace('/\brequire_once [^;]+;/', '', $page);
 $_GET = ['frm' => '15'];

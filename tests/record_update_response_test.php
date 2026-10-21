@@ -87,5 +87,19 @@ foreach ([4, 5] as $version) {
     updateCheck($failedError !== '', "v$version failed update stays on the form with an error");
 }
 updateCheck((int)$db->query('SELECT COUNT(*) FROM cms_log')->fetch_row()[0] === 2, 'Valid audit entries are saved and repeated logging does not redeclare functions');
+// Reproduce production's >32-character login email on the legacy audit schema.
+$_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+$longEmail = str_repeat('audit-user', 5) . '@example.com';
+$_SESSION['useremail'] = $longEmail;
+ob_start();
+saveLog($longEmail, 'LogIn', 'N/A', 'N/A', 'SUCCESS', 'Login regression', 0);
+$logOutput = ob_get_clean();
+updateCheck($logOutput === '' && $_SESSION['useremail'] === $longEmail,
+    'Legacy audit column failure does not interrupt an authenticated session or emit output');
+// Apply the actual migration to the temporary audit table only.
+$db->query(file_get_contents(dirname(__DIR__) . '/migrations/007_audit_username_length.sql'));
+saveLog($longEmail, 'LogIn', 'N/A', 'N/A', 'SUCCESS', 'Login regression', 0);
+$entry = $db->query("SELECT username FROM cms_log WHERE action = 'LogIn'")->fetch_assoc();
+updateCheck($entry && $entry['username'] === $longEmail, 'Audit migration preserves the full long login email');
 $db->close();
 echo "All writes used temporary tables; application records unchanged.\n";

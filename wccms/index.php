@@ -64,7 +64,11 @@ if (isset($_POST["sbt"])) {
    $to = $username;
    $isOk = $user->signIn($username, $passwordhash);
       
-      $username1 = $_SESSION["useremail"];
+      $logtable = 'N/A';
+      $action = 'LogIn';
+      $sqlquery = 'N/A';
+      $notes = 'Login attempt';
+      $recordnumber = 0;
    
       if ($isOk) { // Check if the user and password are correct
 
@@ -112,7 +116,7 @@ if (isset($_POST["sbt"])) {
          $_SESSION["useremail"] = $username;
          $_SESSION["user"] = $full;
 
-         saveLog($username1, $action, $sqlquery, $logtable, 'SUCCESS', $notes, $recordnumber);
+         saveLog($username, $action, $sqlquery, $logtable, 'SUCCESS', $notes, $recordnumber);
 
          $toast[] = array(
                "message" => "Login successful [No 2FA], you will be redirected to the dashboard in a few seconds",

@@ -29,7 +29,18 @@ function saveLogSafely(...$arguments)
     }
 }
 
-function saveLog($username = 'not@set.net', $action = 'Action Not Set', $sqlquery = 'SQL Not Set', $form = 'Form Not Set', $result = 'Result Not Set', $notes = 'Notes Not Set', $contentid = 0)
+/** Audit failures must not interrupt login, logout or a completed save. */
+function saveLog(...$arguments)
+{
+    try {
+        cmsWriteAuditLog(...$arguments);
+    } catch (Throwable $error) {
+        // Avoid copying SQL, submitted data or account details into fallback logs.
+        error_log('Audit log write failed [' . (int) $error->getCode() . ']');
+    }
+}
+
+function cmsWriteAuditLog($username = 'not@set.net', $action = 'Action Not Set', $sqlquery = 'SQL Not Set', $form = 'Form Not Set', $result = 'Result Not Set', $notes = 'Notes Not Set', $contentid = 0)
 {
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
     $browser = cmsLogBrowserName($userAgent);

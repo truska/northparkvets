@@ -264,8 +264,16 @@ else {
    }
 
    public function deleteContent($id, $table) {
-      $query = "UPDATE `$table` 
-      SET `archived` = true 
+      $table = str_replace('`', '``', $table);
+      $id = (int) $id;
+      // Some legacy tables have no visibility column; they can still be archived.
+      $columns = DB::query("SHOW COLUMNS FROM `$table` WHERE Field = 'showonweb'");
+      if (!$columns) {
+         return ['query' => '', 'success' => false];
+      }
+      $visibility = mysqli_num_rows($columns) > 0 ? ", `showonweb` = 'No'" : '';
+      $query = "UPDATE `$table`
+      SET `archived` = true{$visibility}
       WHERE `id` = {$id}";
       $result = DB::query($query);
 
