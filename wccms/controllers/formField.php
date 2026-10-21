@@ -11,6 +11,7 @@ class FormField
    protected $TypeDebug;
    protected $PageType;
    protected $maxGalleryImages = 10;
+   private static $dateTimePickerAssetsLoaded = false;
 
    public function __construct($rowformfield, $rowfield, $ContentValue, $TypeDebug , $PageType, $infomark = '')
    {
@@ -501,6 +502,23 @@ class FormField
 
 
    // DateTime Function # 28
+   private function renderDateTimeInput($formattedValue, $fallbackId, $type = 'datetime-local')
+   {
+       $configuredStep = $this->rowformfield['step'] ?? null;
+       $step = is_numeric($configuredStep) && (float)$configuredStep > 0 ? (float)$configuredStep : 0;
+       $stepAttribute = $step > 0 ? " step='$step'" : '';
+       $pickerAttribute = $step >= 60 && $step <= 3600 && fmod($step, 60) === 0.0
+           ? " data-cms-minute-step='" . ($step / 60) . "' data-cms-picker-type='$type'" : '';
+       $name = htmlspecialchars($this->rowformfield['name'], ENT_QUOTES, 'UTF-8');
+       $output = "<input class='form-control' type='$type' id='$fallbackId' value='$formattedValue' name='$name'{$stepAttribute}{$pickerAttribute}>";
+       if ($pickerAttribute !== '' && !self::$dateTimePickerAssetsLoaded) {
+           self::$dateTimePickerAssetsLoaded = true;
+           $output .= "<link rel='stylesheet' href='/wccms/js-20250113/bootstrap-datetimepicker/css/datetimepicker.css'>";
+           $output .= "<script src='/wccms/js/cms-datetime-picker.js?v=4' defer></script>";
+       }
+       return $output;
+   }
+
    protected function renderDateTimeField()
    {
        if ($this->rowformfield["allowedit"] == 'Yes') {
@@ -526,7 +544,7 @@ class FormField
            }
    
            $output .= "</label>";
-           $output .= "<input class='form-control' type='datetime-local' id='datetimepicker' value='{$formattedValue}' name='{$this->rowformfield['name']}'>";
+           $output .= $this->renderDateTimeInput($formattedValue, 'datetimepicker');
            $output .= "</div>";
        } else {
            $output = "<h6>{$this->rowformfield["label"]} = <strong>{$this->ContentValue}</strong></h6>";
@@ -581,7 +599,7 @@ protected function renderBSDateTimeField()
         }
 
         $output .= "</label>";
-        $output .= "<input class='form-control' type='datetime-local' id='dateTimePicker' value='{$formattedValue}' name='{$this->rowformfield['name']}'>";
+        $output .= $this->renderDateTimeInput($formattedValue, 'dateTimePicker');
         $output .= "</div>";
     } else {
         $output = "<h6>{$this->rowformfield["label"]} = <strong>{$this->ContentValue}</strong></h6>";
@@ -608,7 +626,7 @@ protected function renderBSTimeField()
         }
 
         $output .= "</label>";
-        $output .= "<input class='form-control' type='time' id='timePicker' value='{$formattedValue}' name='{$this->rowformfield['name']}'>";
+        $output .= $this->renderDateTimeInput($formattedValue, 'timePicker', 'time');
         $output .= "</div>";
     } else {
         $output = "<h6>{$this->rowformfield["label"]} = <strong>{$this->ContentValue}</strong></h6>";
@@ -859,7 +877,9 @@ protected function renderBSTimeField()
                   }
                }
             $output .= "</label><br>";
-            $output .= "<input type='{$this->rowfield["type"]}' name='{$this->rowformfield["name"]}' class='form-control {$this->rowformfield["class"]}' id='exampleInputEmail1' {$this->required} value='{$this->ContentValue}'>";
+            $formattedValue = $this->ContentValue !== '' && $this->ContentValue !== null
+                ? date('H:i', strtotime($this->ContentValue)) : '';
+            $output .= $this->renderDateTimeInput($formattedValue, 'timePicker', 'time');
                $output .= "<h6>{$this->rowformfield["label"]} = <strong>" . date('g:i a', strtotime($this->ContentValue)) . "</strong></h6>";
                $output .= "<span>{$this->rowformfield["comment"]}<span>";
          $output .= "</div>";

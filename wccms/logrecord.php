@@ -1,28 +1,39 @@
 <?php
-function saveLog($username = 'not@set.net', $action = 'Action Not Set', $sqlquery = 'SQL Not Set', $form = 'Form Not Set', $result = 'Result Not Set', $notes = 'Notes Not Set', $contentid = 0)
+function cmsLogBrowserName($userAgent)
 {
-    function getBrowserName($userAgent)
-    {
-        $browsers = [
-            'Opera' => 'opr',
-            'Chrome' => 'chrome',
-            'Internet Explorer' => 'msie',
-            'Firefox' => 'firefox',
-            'Safari' => 'safari'
-        ];
+    $browsers = [
+        'Opera' => 'opr',
+        'Chrome' => 'chrome',
+        'Internet Explorer' => 'msie',
+        'Firefox' => 'firefox',
+        'Safari' => 'safari'
+    ];
 
-        foreach ($browsers as $browser => $browserKey) {
-            if (strpos(strtolower($userAgent), $browserKey) !== false) {
-                return $browser;
-            }
+    foreach ($browsers as $browser => $browserKey) {
+        if (strpos(strtolower($userAgent), $browserKey) !== false) {
+            return $browser;
         }
-
-        return "OUT OF DATA";
     }
 
-    $userAgent = $_SERVER['HTTP_USER_AGENT'];
-    $browser = getBrowserName($userAgent);
-    $ip = $_SERVER['REMOTE_ADDR'];
+    return "OUT OF DATA";
+}
+
+
+/** Logging cannot turn a completed record update into a failed response. */
+function saveLogSafely(...$arguments)
+{
+    try {
+        saveLog(...$arguments);
+    } catch (Throwable $error) {
+        error_log('Audit log failed after record operation: ' . $error->getMessage());
+    }
+}
+
+function saveLog($username = 'not@set.net', $action = 'Action Not Set', $sqlquery = 'SQL Not Set', $form = 'Form Not Set', $result = 'Result Not Set', $notes = 'Notes Not Set', $contentid = 0)
+{
+    $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    $browser = cmsLogBrowserName($userAgent);
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
 
     // Establish the connection
     $conn = DB::connection();

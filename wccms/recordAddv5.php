@@ -86,10 +86,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($_POST as $key => $value) {
             if (!is_scalar($value)) throw new InvalidArgumentException('Invalid form value.');
             // Prepared inserts receive raw values rather than SQL-escaped text.
-            $updateData[$key] = in_array($table['name'], ['npe_timesheets', 'products'], true) ? trim((string)$value) : securityCheck($value);
+            $updateData[$key] = trim((string)$value);
         }
         $insertResponse = $FORM->insertTableContent($updateData);
-        if ($insertResponse['status'] !== 'success') throw new RuntimeException('Unable to save the record.');
+        if ($insertResponse['status'] !== 'success') throw new InvalidArgumentException($insertResponse['message']);
         // Logging failure must not turn an already committed save into a failed save.
         try {
             saveLog($_SESSION['useremail'], 'Insert New Record into Form '.$formnumber,

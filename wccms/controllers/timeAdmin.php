@@ -75,7 +75,7 @@ function getProductDetails($conn, $productId) {
 function getVetOptionsTime($conn) {
     
     global $conn; // Declare $conn as global within the function
-    $sql = "SELECT id, name, code FROM npe_vet ORDER BY sort, name";
+    $sql = "SELECT id, name, code FROM npe_vet WHERE archived = 0 ORDER BY sort, name";
   //  error_log("Executing SQL: $sql");
 
     $result = $conn->query($sql);

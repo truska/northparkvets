@@ -170,7 +170,7 @@ function getEhcOptions($conn) {
 }
 
 function getVetOptions($conn) {
-    $sql = "SELECT id, name, code FROM npe_vet ORDER BY `sort` , `name` ";
+    $sql = "SELECT id, name, code FROM npe_vet WHERE archived = 0 ORDER BY `sort` , `name` ";
     $result = $conn->query($sql);
 
     if (!$result) {

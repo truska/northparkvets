@@ -1,9 +1,7 @@
-<!-- START recordEditv5 -->
-<!DOCTYPE html>
-
 <?php
 // Turn off error reporting
-error_reporting(0);
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
 // Turn on error reporting
 // error_reporting(1);
 
@@ -41,6 +39,10 @@ $TypeDebug = $prefs["prefCMSDebugOn"]; // Yes or No
 $PageType = 'Edit'; // Add, Edit, Copy, Delete
 $img1 = 0;
 $toast = [];
+$saveError = '';
+if (($_GET['updated'] ?? '') === 'success') {
+    $toast[] = ['message' => 'Record updated successfully', 'type' => 'success'];
+}
 // $galleryID = $rowcontent['gallery']; // Removed by salva TDR | 13.12.2022
 
 // --- START Edited by salva TDR | 13.12.2022 ---
@@ -249,9 +251,9 @@ if (isset($_POST['submit'])) {
 
 					if ($updateResponse['status'] == 'error') {
 						$errors = array_merge($errors, $updateResponse);
-						savelog('', $action, $sqlproductlog, $table['name'], 'FAIL', $notes, $recordnumber);
+						saveLogSafely('', $action, $sqlproductlog, $table['name'], 'FAIL', $notes, $recordnumber);
 					} else {
-						savelog('', $action, $sqlproductlog, $table['name'], 'SUCCESS', $notes, $recordnumber);
+						saveLogSafely('', $action, $sqlproductlog, $table['name'], 'SUCCESS', $notes, $recordnumber);
 					}
 				}
 			} else { // is a file
@@ -274,9 +276,9 @@ if (isset($_POST['submit'])) {
 
 					if ($updateResponse['status'] == 'error') {
 						$errors = array_merge($errors, $updateResponse);
-						savelog('', $action, $sqlproductlog, $table['name'], 'FAIL', $notes, $recordnumber);
+						saveLogSafely('', $action, $sqlproductlog, $table['name'], 'FAIL', $notes, $recordnumber);
 					} else {
-						savelog('', $action, $sqlproductlog, $table['name'], 'SUCCESS', $notes, $recordnumber);
+						saveLogSafely('', $action, $sqlproductlog, $table['name'], 'SUCCESS', $notes, $recordnumber);
 					}
 				} else {
 					$errors = array_merge($errors, $uploadFile);
@@ -367,45 +369,31 @@ if (isset($_POST['submit'])) {
 		
 		if ($updateResponse['status'] == 'error') {
 			$errors = array_merge($errors, $updateResponse);
-			saveLog($username, $action, $sqlquery, $logtable, 'FAIL', $notes, $recordnumber);
+			saveLogSafely($username, $action, $sqlquery, $logtable, 'FAIL', $notes, $recordnumber);
 		} else {
-			saveLog($username, $action, $sqlquery, $logtable, 'SUCCESS', $notes, $recordnumber);
+			saveLogSafely($username, $action, $sqlquery, $logtable, 'SUCCESS', $notes, $recordnumber);
 		}
 		
 	}
 
 	// -- END Update table content | salva TDR | 02.03.2023 -- //
 
-	if (count($errors) > 0) {
-		echo "<pre>";
-		echo "Errors: ";
-		print_r($errors);
-		echo "</pre>";
-		die;
-	}
-
-	// -- We get the afterEdit field and we redirect to the page -- //
-	$redirectTo = $form['afterEdit'];
-
-	if($form["afterEdit"] == 'edit') {
-		$redirectTo = 'recordEditv'.$prefs["prefCMSVer"].'.php?frm=[frm]&id=[id]' ;
-	}
-	if($form["afterEdit"] == 'view') {
-		$redirectTo = 'recordViewv'.$prefs["prefCMSVer"].'.php?frm=[frm]' ;
-	}
-
-	if (!empty($redirectTo)) {
-		$redirectTo = str_replace("[frm]", $formnumber, $redirectTo);
-		$redirectTo = str_replace("[id]", $recordnumber, $redirectTo);
-		header("Location: " . $redirectTo . "");
-	} else {
-		// echo "<script>alert('Record updated successfully');</script>";
-		$toast[] = array(
-			"message" => "Record updated successfully",
-			"type" => "success"
-		);
-	}
-	// -------------------------------------------- //
+    if (count($errors) > 0) {
+        $saveError = $updateResponse['message'] ?? 'Unable to save the record. Check the entered values and try again.';
+    } else {
+        $redirectTo = $form['afterEdit'];
+        if ($redirectTo === 'edit' || $redirectTo === '') {
+            $redirectTo = 'recordEditv' . $prefs['prefCMSVer'] . '.php?' . http_build_query([
+                'frm' => $formnumber, 'id' => $recordnumber, 'updated' => 'success'
+            ]);
+        } elseif ($redirectTo === 'view') {
+            $redirectTo = 'recordViewv' . $prefs['prefCMSVer'] . '.php?frm=' . $formnumber;
+        }
+        $redirectTo = str_replace(['[frm]', '[id]'], [$formnumber, $recordnumber], $redirectTo);
+        // Always load a fresh GET after saving, preserving the browser's external port.
+        header('Location: ' . $redirectTo, true, 303);
+        exit;
+    }
 
 	$rowcontent = $FORM->getTableContent(); // Get the Actual Table Content (after update)
 	$form_fields = $FORM->getFormFields(); // Get form fields data (after update)
@@ -441,11 +429,11 @@ if (isset($_POST["proimage"])) {
 
 		if ($response['status'] == 'success') {
 			$sqlproductlog = $response['query'];
-			savelog('', $action, $sqlproductlog, $logtable, 'SUCCESS', $notes, $proimg["id"]);
+			saveLogSafely('', $action, $sqlproductlog, $logtable, 'SUCCESS', $notes, $proimg["id"]);
 		} else {
 			$result[] = $response['message'];
 			$sqlproductlog = $response['query'];
-			savelog('', $action, $sqlproductlog, $logtable, 'FAIL', $notes, $proimg["id"]);
+			saveLogSafely('', $action, $sqlproductlog, $logtable, 'FAIL', $notes, $proimg["id"]);
 		}
 	}
 
@@ -492,11 +480,11 @@ if (isset($_POST["updateGallery"])) {
 
 		if ($response['status'] == 'success') {
 			$sqlproductlog = $response['query'];
-		//	savelog('', $action, $sqlproductlog, $logtable, 'SUCCESS', $notes, $proimg["id"]);
+		//	saveLogSafely('', $action, $sqlproductlog, $logtable, 'SUCCESS', $notes, $proimg["id"]);
 		} else {
 			$result[] = $response['message'];
 			$sqlproductlog = $response['query'];
-		//	savelog('', $action, $sqlproductlog, $logtable, 'FAIL', $notes, $proimg["id"]);
+		//	saveLogSafely('', $action, $sqlproductlog, $logtable, 'FAIL', $notes, $proimg["id"]);
 		}
 	}
 
@@ -530,7 +518,7 @@ if (isset($_POST["updateGallery"])) {
 // End update gallery images (other forms)
 
 
-if ($_GET['insert']) { // New record added
+if (!empty($_GET['insert'])) { // New record added
 	$insertStatus = securityCheck($_GET['insert']);
 	$insertMessage = securityCheck($_GET['msg']);
 
@@ -561,6 +549,7 @@ if ($_GET['insert']) { // New record added
 }
 ?>
 
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -817,6 +806,9 @@ if ($_GET['insert']) { // New record added
 
 		<section id="main-content">
 			<section class="wrapper site-min-height">
+                <?php if ($saveError !== ''): ?>
+                <div class="alert alert-danger" role="alert"><?= htmlspecialchars($saveError, ENT_QUOTES, 'UTF-8') ?></div>
+                <?php endif; ?>
 				<?php
 				// echo "<pre>";
 				// print_r($rowcontent);

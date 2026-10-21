@@ -14,6 +14,8 @@
 !/migrations/002_timesheet_v5_menu.sql
 !/migrations/003_rate_migration_tech_menu.sql
 !/migrations/004_required_defaults.sql
+!/migrations/005_vet_dropdown_archive_filter.sql
+!/migrations/006_expected_time_quarter_hours.sql
 *.sql.gz
 *.dump
 *.log

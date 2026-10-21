@@ -119,19 +119,6 @@ class RecordAdd
    }
 
    
-   private function getLastInsert() {
-      $query = "SELECT * FROM `" . $this->table['name'] . "` 
-      ORDER BY `id` DESC 
-      LIMIT 1";
-      $lastRecord = mysqli_fetch_array(DB::query($query), MYSQLI_ASSOC);
-
-      if ($lastRecord) {
-         return $lastRecord;
-      } else {
-         return null;
-      }
-   }
-
    /**
     * Update Table Content
     *
@@ -161,38 +148,16 @@ class RecordAdd
          return insertTimesheetWithRates($conn, $data);
       }
 
-      $query = "INSERT INTO `" . $this->table['name'] . "` (";
-      foreach ($data as $key => $value) {
-         if ($key != 'formnumber' && $key != 'submit') {
-            $query .= "`$key`, ";
-         }
-      }
-      $query = substr($query, 0, -2); // remove last comma
-      $query .= ") VALUES (";
-      foreach ($data as $key => $value) {
-         if ($key != 'formnumber' && $key != 'submit') {
-            $query .= "'$value', ";
-         }
-      }
-      $query = substr($query, 0, -2); // remove last comma
-      $query .= ")";
-      $response = DB::query($query);
-
-      $lastRecord = $this->getLastInsert();
-
-      if ($response) {
-         return [
-            'status' => 'success',
-            'message' => 'Record added successfully',
-            'recordID' => $lastRecord['id'],
-            'query' => $query
-         ];
-      } else {
-         return [
-            'status' => 'error',
-            'message' => 'Error adding record',
-            'query' => $query
-         ];
+      require_once __DIR__ . '/recordInsert.php';
+      $connection = DB::connection();
+      try {
+         return insertCmsRecord($connection, $this->table['name'], $data);
+      } catch (Throwable $exception) {
+         error_log('CMS record insert failed [' . $this->table['name'] . ']: ' . $exception->getMessage());
+         return ['status' => 'error', 'message' => cmsRecordSaveError($exception),
+            'query' => 'INSERT INTO ' . $this->table['name']];
+      } finally {
+         $connection->close();
       }
    }
 }

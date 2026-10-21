@@ -1,8 +1,7 @@
-<!-- START recordAddv4 -->
-<!-- WiteCanvasCMS ver 3.0 -->
 <?php
 
-error_reporting(1);
+error_reporting(E_ALL);
+ini_set('display_errors', '0');
 include('setting/main-top-files.php'); // Added by salva TDR | 16.1.2023
 
 
@@ -37,9 +36,11 @@ $form_fields = $FORM->getFormFields(true);
 // echo "</pre>";
 // --- END added by salva TDR | 16.1.2023 ---
 
+$saveError = '';
+require_once __DIR__ . '/controllers/recordInsert.php';
+
 if (isset($_POST['submit'])) {
 	$updateData = [];
-	$errors = array();
 
 	// Check if `slug` exists
 	if (isset($_POST['slug'])) {
@@ -85,37 +86,34 @@ if (isset($_POST['submit'])) {
 		}
 	}
 
-	foreach ($_POST as $key => $value) {
-		$updateData[$key] = $table['name'] === 'products'
-            ? trim((string)$value) : securityCheck($value);
-	}
+    try {
+        foreach ($_POST as $key => $value) {
+            if (!is_scalar($value)) throw new InvalidArgumentException('Invalid form value.');
+            $updateData[$key] = trim((string)$value);
+        }
+        $insertResponse = $FORM->insertTableContent($updateData);
+        if ($insertResponse['status'] !== 'success') {
+            $saveError = $insertResponse['message'];
+        } else {
+            // A logging failure must not hide an already successful insert.
+            try {
+                saveLog($_SESSION['useremail'], 'Insert New Record into Form ' . $formnumber,
+                    $insertResponse['query'], $table['name'], 'SUCCESS',
+                    $insertResponse['message'], $insertResponse['recordID']);
+            } catch (Throwable $logError) {
+                error_log('Record saved, but audit logging failed: ' . $logError->getMessage());
+            }
+            header('Location: recordEditv' . $prefs['prefCMSVer'] . '.php?' . http_build_query([
+                'frm' => $formnumber, 'id' => $insertResponse['recordID'],
+                'insert' => 'success', 'msg' => $insertResponse['message']
+            ]), true, 303);
+            exit;
+        }
+    } catch (Throwable $exception) {
+        error_log('V4 record creation failed: ' . $exception->getMessage());
+        $saveError = cmsRecordSaveError($exception);
+    }
 
-	$insertResponse = $FORM->insertTableContent($updateData);
-
-	$logtable = $table['name'];
-	$action = "Insert New Record into Form " . $formnumber;
-	$sqlquery = mysqli_real_escape_string($conn, $insertResponse['query']);
-	$notes = $insertResponse['message'];
-	$username = $_SESSION["useremail"];
-
-	if ($insertResponse['status'] == 'error') {
-		$errors = array_merge($errors, $insertResponse);
-		saveLog($username, $action, $sqlquery, $logtable, 'FAIL', $notes, $recordnumber);
-	} else {
-		saveLog($username, $action, $sqlquery, $logtable, 'SUCCESS', $notes, $recordnumber);
-	}
-
-	if (count($errors) > 0) {
-		echo "<pre>";
-		echo "Errors: ";
-		print_r($errors);
-		echo "</pre>";
-		die;
-	}
-
-	echo "<script>
-   	window.location='recordEditv{$prefs["prefCMSVer"]}.php?frm={$formnumber}&id={$insertResponse['recordID']}&insert={$insertResponse['status']}&msg={$insertResponse['message']}';
-   </script>";
 }
 
 ?>
@@ -183,7 +181,10 @@ if (isset($_POST['submit'])) {
 				$infomark = "<i class='fas fa-info-circle' style='color:#28998B; padding-left:10px;'></i>";
 				?>
 
-				<!-- FORM HERE -->
+				<?php if ($saveError !== ''): ?>
+                    <div class="alert alert-danger" role="alert"><?= htmlspecialchars($saveError, ENT_QUOTES, 'UTF-8') ?></div>
+                    <?php endif; ?>
+                    <!-- FORM HERE -->
 				<form role="form" class="form-horizontal" method="post" enctype="multipart/form-data">
 					<?php
 					echo "<p><span style='color:red;'>*</span> Read Only</p><hr>" ;
@@ -224,7 +225,12 @@ if (isset($_POST['submit'])) {
 								break;
 						}
 
-						$FORMFIELD = new FormField($rowformfield, $rowfield, '', $TypeDebug, $PageType, $infomark);
+						$submittedValue = isset($_POST[$rowformfield['name']]) && is_scalar($_POST[$rowformfield['name']])
+                            ? (string)$_POST[$rowformfield['name']] : '';
+                        // Text fields escape themselves; other legacy renderers expect escaped content.
+                        $submittedValue = (int)$rowfield['id'] === 1 ? addslashes($submittedValue)
+                            : htmlspecialchars($submittedValue, ENT_QUOTES, 'UTF-8');
+                        $FORMFIELD = new FormField($rowformfield, $rowfield, $submittedValue, $TypeDebug, $PageType, $infomark);
 						echo $FORMFIELD->render(0,$formnumber);
 
 						if ($rowfield["id"] == 118) // New Slug Creation Select Statement From Table
